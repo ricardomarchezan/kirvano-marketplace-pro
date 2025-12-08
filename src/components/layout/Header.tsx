@@ -1,13 +1,27 @@
-import { Bell, Search } from "lucide-react";
+import { Bell, Search, Moon, Sun, TrendingUp } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useTheme } from "@/components/ThemeProvider";
+import { Progress } from "@/components/ui/progress";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 export function Header() {
+  const { theme, toggleTheme } = useTheme();
+  
   const today = new Date().toLocaleDateString("pt-BR", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
   });
+
+  // Simulated user progress (0-10K)
+  const currentSales = 7450;
+  const maxSales = 10000;
+  const progressPercent = (currentSales / maxSales) * 100;
 
   return (
     <header className="h-16 border-b border-border bg-background/80 backdrop-blur-xl sticky top-0 z-30">
@@ -25,14 +39,60 @@ export function Header() {
             />
           </div>
 
+          {/* Theme Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-2 rounded-lg hover:bg-secondary transition-colors"
+            aria-label="Toggle theme"
+          >
+            {theme === "dark" ? (
+              <Sun className="w-5 h-5 text-muted-foreground hover:text-warning transition-colors" />
+            ) : (
+              <Moon className="w-5 h-5 text-muted-foreground hover:text-primary transition-colors" />
+            )}
+          </button>
+
           <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
             <Bell className="w-5 h-5 text-muted-foreground" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
           </button>
 
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[hsl(250,91%,65%)] flex items-center justify-center cursor-pointer hover:scale-105 transition-transform">
-            <span className="text-primary-foreground font-semibold text-sm">JD</span>
-          </div>
+          {/* Progress Bar with Avatar */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="flex items-center gap-3 pl-3 border-l border-border">
+                <div className="hidden md:flex flex-col items-end gap-1">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 text-success" />
+                    <span className="text-xs font-semibold text-foreground">
+                      R$ {currentSales.toLocaleString("pt-BR")}
+                    </span>
+                    <span className="text-xs text-muted-foreground">/ 10K</span>
+                  </div>
+                  <Progress 
+                    value={progressPercent} 
+                    className="h-1.5 w-24 bg-secondary"
+                  />
+                </div>
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[hsl(250,91%,65%)] flex items-center justify-center cursor-pointer hover:scale-105 transition-transform">
+                    <span className="text-primary-foreground font-semibold text-sm">JD</span>
+                  </div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-success border-2 border-background flex items-center justify-center">
+                    <span className="text-[8px] font-bold text-success-foreground">5</span>
+                  </div>
+                </div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="bg-card border-border">
+              <div className="text-center">
+                <p className="font-medium text-foreground">Nível 5 - Expert</p>
+                <p className="text-xs text-muted-foreground">
+                  R$ {(maxSales - currentSales).toLocaleString("pt-BR")} para o próximo nível
+                </p>
+              </div>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </header>

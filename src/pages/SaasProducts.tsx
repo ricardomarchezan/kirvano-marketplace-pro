@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -10,8 +11,32 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Plus, Package, Users, TrendingDown, DollarSign, Edit, Trash2 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { 
+  Plus, 
+  Package, 
+  Users, 
+  TrendingDown, 
+  DollarSign, 
+  Edit, 
+  Trash2, 
+  RefreshCw,
+  FileCode,
+  Key,
+  Link,
+  Upload,
+  AlertCircle
+} from "lucide-react";
 import { useState } from "react";
+import { toast } from "@/hooks/use-toast";
+
+type BusinessModel = "recurring" | "whitelabel" | "";
 
 const myProducts = [
   {
@@ -24,6 +49,7 @@ const myProducts = [
     churn: 2.3,
     mrr: 30732,
     status: "active",
+    model: "recurring" as const,
   },
   {
     id: 2,
@@ -35,11 +61,56 @@ const myProducts = [
     churn: 3.1,
     mrr: 8633,
     status: "active",
+    model: "recurring" as const,
+  },
+  {
+    id: 3,
+    name: "Template Dashboard Pro",
+    description: "Template completo de dashboard SaaS",
+    price: 497,
+    commission: 25,
+    activeClients: 0,
+    churn: 0,
+    mrr: 0,
+    status: "active",
+    model: "whitelabel" as const,
+    totalSales: 45,
+    totalRevenue: 22365,
   },
 ];
 
 const SaasProducts = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [businessModel, setBusinessModel] = useState<BusinessModel>("");
+  const [acceptTerms, setAcceptTerms] = useState(false);
+
+  const handleSubmit = () => {
+    if (!businessModel) {
+      toast({
+        title: "Selecione o modelo",
+        description: "Por favor, escolha o modelo de negócio do seu SaaS.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (businessModel === "whitelabel" && !acceptTerms) {
+      toast({
+        title: "Aceite os termos",
+        description: "Você precisa aceitar o termo de licença para produtos White Label.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    toast({
+      title: "SaaS cadastrado!",
+      description: "Seu produto foi cadastrado com sucesso.",
+    });
+    setIsDialogOpen(false);
+    setBusinessModel("");
+    setAcceptTerms(false);
+  };
 
   return (
     <DashboardLayout>
@@ -52,46 +123,83 @@ const SaasProducts = () => {
               Gerencie seus produtos e acompanhe métricas
             </p>
           </div>
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <Dialog open={isDialogOpen} onOpenChange={(open) => {
+            setIsDialogOpen(open);
+            if (!open) {
+              setBusinessModel("");
+              setAcceptTerms(false);
+            }
+          }}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90">
                 <Plus className="w-4 h-4 mr-2" />
                 Cadastrar Novo SaaS
               </Button>
             </DialogTrigger>
-            <DialogContent className="bg-card border-border max-w-lg">
+            <DialogContent className="bg-card border-border max-w-xl max-h-[90vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle className="text-foreground">Cadastrar Novo SaaS</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 mt-4">
+              <div className="space-y-5 mt-4">
+                {/* Business Model Selection */}
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nome do Produto</Label>
+                  <Label htmlFor="model" className="flex items-center gap-2">
+                    <Package className="w-4 h-4 text-primary" />
+                    Modelo de Negócio *
+                  </Label>
+                  <Select value={businessModel} onValueChange={(value: BusinessModel) => setBusinessModel(value)}>
+                    <SelectTrigger className="bg-secondary border-border">
+                      <SelectValue placeholder="Selecione o modelo do seu SaaS" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                      <SelectItem value="recurring">
+                        <div className="flex items-center gap-2">
+                          <RefreshCw className="w-4 h-4 text-primary" />
+                          <span>Recorrência (Assinatura)</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="whitelabel">
+                        <div className="flex items-center gap-2">
+                          <FileCode className="w-4 h-4 text-warning" />
+                          <span>White Label (Venda Única)</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    {businessModel === "recurring" 
+                      ? "Ideal para SaaS com cobrança mensal. Comissões recorrentes para afiliados."
+                      : businessModel === "whitelabel"
+                      ? "Ideal para templates e códigos-fonte. Venda única com licença transferida."
+                      : "Escolha como seu produto será comercializado."}
+                  </p>
+                </div>
+
+                {/* Common Fields */}
+                <div className="space-y-2">
+                  <Label htmlFor="name">Nome do Produto *</Label>
                   <Input id="name" placeholder="Ex: MeuSaaS Pro" className="bg-secondary border-border" />
                 </div>
+                
                 <div className="space-y-2">
-                  <Label htmlFor="description">Descrição</Label>
+                  <Label htmlFor="description">Descrição *</Label>
                   <Textarea
                     id="description"
-                    placeholder="Descreva seu produto..."
+                    placeholder="Descreva seu produto de forma atrativa para afiliados..."
                     className="bg-secondary border-border resize-none"
                     rows={3}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="webhook">URL de Ativação (Webhook)</Label>
-                  <Input
-                    id="webhook"
-                    placeholder="https://seusite.com/api/activate"
-                    className="bg-secondary border-border"
-                  />
-                </div>
+
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="price">Preço Mensal (R$)</Label>
+                    <Label htmlFor="price">
+                      {businessModel === "whitelabel" ? "Preço Único (R$)" : "Preço Mensal (R$)"}
+                    </Label>
                     <Input
                       id="price"
                       type="number"
-                      placeholder="197"
+                      placeholder={businessModel === "whitelabel" ? "497" : "197"}
                       className="bg-secondary border-border"
                     />
                   </div>
@@ -105,7 +213,110 @@ const SaasProducts = () => {
                     />
                   </div>
                 </div>
-                <Button className="w-full bg-primary hover:bg-primary/90 mt-4">
+
+                {/* Recurring-specific fields */}
+                {businessModel === "recurring" && (
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <div className="flex items-center gap-2 text-primary">
+                      <RefreshCw className="w-4 h-4" />
+                      <span className="font-medium text-sm">Configurações de Recorrência</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="webhook" className="flex items-center gap-2">
+                        <Link className="w-4 h-4 text-muted-foreground" />
+                        URL de Ativação (Webhook) *
+                      </Label>
+                      <Input
+                        id="webhook"
+                        placeholder="https://seusite.com/api/activate"
+                        className="bg-secondary border-border"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Endpoint que será chamado quando um cliente ativar a assinatura.
+                      </p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="apikey" className="flex items-center gap-2">
+                        <Key className="w-4 h-4 text-muted-foreground" />
+                        Chave Secreta de API *
+                      </Label>
+                      <Input
+                        id="apikey"
+                        type="password"
+                        placeholder="sk_live_..."
+                        className="bg-secondary border-border"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Chave para autenticação segura entre nossa plataforma e seu sistema.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* White Label-specific fields */}
+                {businessModel === "whitelabel" && (
+                  <div className="space-y-4 pt-4 border-t border-border">
+                    <div className="flex items-center gap-2 text-warning">
+                      <FileCode className="w-4 h-4" />
+                      <span className="font-medium text-sm">Configurações White Label</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="download" className="flex items-center gap-2">
+                        <Upload className="w-4 h-4 text-muted-foreground" />
+                        Arquivo ZIP ou Link GitHub *
+                      </Label>
+                      <Input
+                        id="download"
+                        placeholder="https://github.com/user/repo ou faça upload..."
+                        className="bg-secondary border-border"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Link para download do código-fonte após a compra.
+                      </p>
+                    </div>
+
+                    <div className="p-4 rounded-xl bg-warning/10 border border-warning/20">
+                      <div className="flex items-start gap-3">
+                        <AlertCircle className="w-5 h-5 text-warning flex-shrink-0 mt-0.5" />
+                        <div className="space-y-3">
+                          <div>
+                            <p className="font-medium text-foreground text-sm">Termo de Licença White Label</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Ao cadastrar um produto White Label, você declara que:
+                            </p>
+                            <ul className="text-xs text-muted-foreground mt-2 space-y-1 list-disc list-inside">
+                              <li>Possui direitos sobre o código-fonte</li>
+                              <li>A licença será transferida para o comprador após a venda</li>
+                              <li>O comprador poderá modificar e revender sob sua própria marca</li>
+                            </ul>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Checkbox 
+                              id="terms" 
+                              checked={acceptTerms}
+                              onCheckedChange={(checked) => setAcceptTerms(checked === true)}
+                            />
+                            <label
+                              htmlFor="terms"
+                              className="text-sm font-medium leading-none text-foreground cursor-pointer"
+                            >
+                              Aceito os termos de licença White Label
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <Button 
+                  onClick={handleSubmit}
+                  className="w-full bg-primary hover:bg-primary/90 mt-4"
+                  disabled={!businessModel || (businessModel === "whitelabel" && !acceptTerms)}
+                >
                   Cadastrar Produto
                 </Button>
               </div>
@@ -119,11 +330,28 @@ const SaasProducts = () => {
             <div key={product.id} className="glass-card p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                    <Package className="w-6 h-6 text-primary" />
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                    product.model === "recurring" 
+                      ? "bg-gradient-to-br from-primary/20 to-primary/5" 
+                      : "bg-gradient-to-br from-warning/20 to-warning/5"
+                  }`}>
+                    {product.model === "recurring" ? (
+                      <RefreshCw className="w-6 h-6 text-primary" />
+                    ) : (
+                      <FileCode className="w-6 h-6 text-warning" />
+                    )}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">{product.name}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-foreground">{product.name}</h3>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                        product.model === "recurring"
+                          ? "bg-primary/10 text-primary"
+                          : "bg-warning/10 text-warning"
+                      }`}>
+                        {product.model === "recurring" ? "Recorrência" : "White Label"}
+                      </span>
+                    </div>
                     <p className="text-sm text-muted-foreground">{product.description}</p>
                   </div>
                 </div>
@@ -138,29 +366,52 @@ const SaasProducts = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-4">
-                <div className="p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    <Users className="w-4 h-4 text-primary" />
-                    <span className="text-xs text-muted-foreground">Clientes Ativos</span>
-                  </div>
-                  <p className="text-xl font-bold text-foreground">{product.activeClients}</p>
-                </div>
-                <div className="p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    <TrendingDown className="w-4 h-4 text-warning" />
-                    <span className="text-xs text-muted-foreground">Churn Rate</span>
-                  </div>
-                  <p className="text-xl font-bold text-foreground">{product.churn}%</p>
-                </div>
-                <div className="p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    <DollarSign className="w-4 h-4 text-success" />
-                    <span className="text-xs text-muted-foreground">MRR</span>
-                  </div>
-                  <p className="text-xl font-bold text-foreground">
-                    R$ {product.mrr.toLocaleString("pt-BR")}
-                  </p>
-                </div>
+                {product.model === "recurring" ? (
+                  <>
+                    <div className="p-3 rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users className="w-4 h-4 text-primary" />
+                        <span className="text-xs text-muted-foreground">Clientes Ativos</span>
+                      </div>
+                      <p className="text-xl font-bold text-foreground">{product.activeClients}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <TrendingDown className="w-4 h-4 text-warning" />
+                        <span className="text-xs text-muted-foreground">Churn Rate</span>
+                      </div>
+                      <p className="text-xl font-bold text-foreground">{product.churn}%</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <DollarSign className="w-4 h-4 text-success" />
+                        <span className="text-xs text-muted-foreground">MRR</span>
+                      </div>
+                      <p className="text-xl font-bold text-foreground">
+                        R$ {product.mrr.toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="p-3 rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Package className="w-4 h-4 text-warning" />
+                        <span className="text-xs text-muted-foreground">Vendas Totais</span>
+                      </div>
+                      <p className="text-xl font-bold text-foreground">{(product as any).totalSales || 0}</p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-secondary/50">
+                      <div className="flex items-center gap-2 mb-1">
+                        <DollarSign className="w-4 h-4 text-success" />
+                        <span className="text-xs text-muted-foreground">Receita Total</span>
+                      </div>
+                      <p className="text-xl font-bold text-foreground">
+                        R$ {((product as any).totalRevenue || 0).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                  </>
+                )}
                 <div className="p-3 rounded-lg bg-secondary/50">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-muted-foreground">Comissão</span>
@@ -171,7 +422,9 @@ const SaasProducts = () => {
 
               <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
                 <span className="text-sm text-muted-foreground">
-                  Preço: <span className="text-foreground font-medium">R$ {product.price}/mês</span>
+                  Preço: <span className="text-foreground font-medium">
+                    R$ {product.price}{product.model === "recurring" ? "/mês" : " (único)"}
+                  </span>
                 </span>
                 <span className="px-2 py-1 rounded-full bg-success/10 text-success text-xs font-medium">
                   Ativo
