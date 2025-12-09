@@ -9,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Filter, Download, TrendingUp, DollarSign, Users, RefreshCw } from "lucide-react";
+import { Search, Filter, Download, TrendingUp, DollarSign, Users, RefreshCw, ArrowUpRight, ArrowDownRight } from "lucide-react";
 
 const sales = [
   {
@@ -57,6 +57,24 @@ const sales = [
     date: "2024-01-11",
     status: "refunded",
   },
+  {
+    id: "TXN-006",
+    product: "SaaS Template Pro",
+    customer: "carlos@dev.com",
+    amount: 497,
+    commission: 124.25,
+    date: "2024-01-10",
+    status: "completed",
+  },
+  {
+    id: "TXN-007",
+    product: "InvoiceMaster",
+    customer: "fernanda@contabil.com",
+    amount: 67,
+    commission: 30.15,
+    date: "2024-01-09",
+    status: "chargeback",
+  },
 ];
 
 const Sales = () => {
@@ -71,7 +89,7 @@ const Sales = () => {
               Histórico de transações e métricas de vendas
             </p>
           </div>
-          <Button variant="outline" className="border-border">
+          <Button variant="outline" className="border-border hover:bg-secondary transition-all active:scale-95">
             <Download className="w-4 h-4 mr-2" />
             Exportar
           </Button>
@@ -79,47 +97,71 @@ const Sales = () => {
 
         {/* Metrics */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <DollarSign className="w-5 h-5 text-primary" />
+          <div className="glass-card p-5 hover:border-primary/30 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10">
+                  <DollarSign className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">MRR</p>
+                  <p className="text-2xl font-bold text-foreground">R$ 12.450</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">MRR</p>
-                <p className="text-xl font-bold text-foreground">R$ 12.450</p>
-              </div>
-            </div>
-          </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10">
-                <TrendingUp className="w-5 h-5 text-success" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">LTV Médio</p>
-                <p className="text-xl font-bold text-foreground">R$ 2.340</p>
+              <div className="flex items-center gap-1 text-success text-xs font-medium">
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                12%
               </div>
             </div>
           </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-warning/10">
-                <Users className="w-5 h-5 text-warning" />
+          <div className="glass-card p-5 hover:border-success/30 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-success/10">
+                  <TrendingUp className="w-5 h-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">LTV Médio</p>
+                  <p className="text-2xl font-bold text-foreground">R$ 2.340</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Clientes Ativos</p>
-                <p className="text-xl font-bold text-foreground">234</p>
+              <div className="flex items-center gap-1 text-success text-xs font-medium">
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                8%
               </div>
             </div>
           </div>
-          <div className="glass-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-destructive/10">
-                <RefreshCw className="w-5 h-5 text-destructive" />
+          <div className="glass-card p-5 hover:border-warning/30 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-warning/10">
+                  <Users className="w-5 h-5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Clientes Ativos</p>
+                  <p className="text-2xl font-bold text-foreground">234</p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Churn Rate</p>
-                <p className="text-xl font-bold text-foreground">2.3%</p>
+              <div className="flex items-center gap-1 text-success text-xs font-medium">
+                <ArrowUpRight className="w-3.5 h-3.5" />
+                5%
+              </div>
+            </div>
+          </div>
+          <div className="glass-card p-5 hover:border-destructive/30 transition-colors">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-destructive/10">
+                  <RefreshCw className="w-5 h-5 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Churn Rate</p>
+                  <p className="text-2xl font-bold text-foreground">2.3%</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1 text-destructive text-xs font-medium">
+                <ArrowDownRight className="w-3.5 h-3.5" />
+                0.5%
               </div>
             </div>
           </div>
@@ -135,7 +177,7 @@ const Sales = () => {
                 className="pl-10 bg-secondary border-border"
               />
             </div>
-            <Button variant="outline" className="border-border">
+            <Button variant="outline" className="border-border hover:bg-secondary transition-all active:scale-95">
               <Filter className="w-4 h-4 mr-2" />
               Filtros
             </Button>
@@ -158,7 +200,7 @@ const Sales = () => {
             </TableHeader>
             <TableBody>
               {sales.map((sale) => (
-                <TableRow key={sale.id} className="border-border hover:bg-secondary/50">
+                <TableRow key={sale.id} className="border-border hover:bg-secondary/50 transition-colors">
                   <TableCell className="font-mono text-sm text-muted-foreground">
                     {sale.id}
                   </TableCell>
@@ -175,19 +217,32 @@ const Sales = () => {
                   </TableCell>
                   <TableCell>
                     <span
-                      className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium inline-flex items-center gap-1 ${
                         sale.status === "completed"
                           ? "bg-success/10 text-success"
                           : sale.status === "pending"
                           ? "bg-warning/10 text-warning"
+                          : sale.status === "refunded"
+                          ? "bg-muted text-muted-foreground"
                           : "bg-destructive/10 text-destructive"
                       }`}
                     >
+                      <span className={`w-1.5 h-1.5 rounded-full ${
+                        sale.status === "completed"
+                          ? "bg-success"
+                          : sale.status === "pending"
+                          ? "bg-warning"
+                          : sale.status === "refunded"
+                          ? "bg-muted-foreground"
+                          : "bg-destructive"
+                      }`} />
                       {sale.status === "completed"
                         ? "Concluído"
                         : sale.status === "pending"
                         ? "Pendente"
-                        : "Reembolsado"}
+                        : sale.status === "refunded"
+                        ? "Reembolsado"
+                        : "Chargeback"}
                     </span>
                   </TableCell>
                 </TableRow>
