@@ -1,7 +1,9 @@
-import { Bell, Search, Moon, Sun, TrendingUp } from "lucide-react";
+import { Bell, Search, Moon, Sun, TrendingUp, ShoppingCart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTheme } from "@/components/ThemeProvider";
 import { Progress } from "@/components/ui/progress";
+import { useCart } from "@/contexts/CartContext";
+import { useNavigate } from "react-router-dom";
 import {
   Tooltip,
   TooltipContent,
@@ -10,6 +12,8 @@ import {
 
 export function Header() {
   const { theme, toggleTheme } = useTheme();
+  const { itemCount, total } = useCart();
+  const navigate = useNavigate();
   
   const today = new Date().toLocaleDateString("pt-BR", {
     weekday: "long",
@@ -42,7 +46,7 @@ export function Header() {
           {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-lg hover:bg-secondary transition-colors"
+            className="p-2 rounded-lg hover:bg-secondary active:bg-secondary/80 transition-all active:scale-95"
             aria-label="Toggle theme"
           >
             {theme === "dark" ? (
@@ -52,7 +56,31 @@ export function Header() {
             )}
           </button>
 
-          <button className="relative p-2 rounded-lg hover:bg-secondary transition-colors">
+          {/* Shopping Cart */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                onClick={() => navigate("/checkout")}
+                className="relative p-2 rounded-lg hover:bg-secondary active:bg-secondary/80 transition-all active:scale-95"
+              >
+                <ShoppingCart className="w-5 h-5 text-muted-foreground" />
+                {itemCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary rounded-full flex items-center justify-center text-[10px] font-bold text-primary-foreground">
+                    {itemCount}
+                  </span>
+                )}
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="bg-card border-border">
+              <p className="text-sm">
+                {itemCount > 0
+                  ? `${itemCount} ${itemCount === 1 ? "item" : "itens"} - R$ ${total.toFixed(2)}`
+                  : "Carrinho vazio"}
+              </p>
+            </TooltipContent>
+          </Tooltip>
+
+          <button className="relative p-2 rounded-lg hover:bg-secondary active:bg-secondary/80 transition-all active:scale-95">
             <Bell className="w-5 h-5 text-muted-foreground" />
             <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full" />
           </button>
@@ -75,7 +103,7 @@ export function Header() {
                   />
                 </div>
                 <div className="relative">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[hsl(250,91%,65%)] flex items-center justify-center cursor-pointer hover:scale-105 transition-transform">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[hsl(250,91%,65%)] flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-transform">
                     <span className="text-primary-foreground font-semibold text-sm">JD</span>
                   </div>
                   <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-success border-2 border-background flex items-center justify-center">

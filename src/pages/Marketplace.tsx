@@ -2,26 +2,20 @@ import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { ProductDetailModal } from "@/components/marketplace/ProductDetailModal";
 import { 
   Search, 
   Star, 
-  Users, 
-  Copy, 
-  ExternalLink, 
   Play, 
   RefreshCw, 
   Package,
   Check,
-  X
+  ShoppingCart,
+  UserPlus
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
+import { useCart } from "@/contexts/CartContext";
 
 type BusinessModel = "all" | "recurring" | "whitelabel";
 
@@ -122,7 +116,8 @@ const Marketplace = () => {
   const [filter, setFilter] = useState<BusinessModel>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedProduct, setSelectedProduct] = useState<typeof saasProducts[0] | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { addItem, items } = useCart();
 
   const filteredProducts = saasProducts.filter((product) => {
     const matchesFilter = filter === "all" || product.model === filter;
@@ -132,21 +127,44 @@ const Marketplace = () => {
     return matchesFilter && matchesSearch;
   });
 
-  const handlePromote = (product: typeof saasProducts[0]) => {
+  const handleCardClick = (product: typeof saasProducts[0]) => {
     setSelectedProduct(product);
-    setIsDialogOpen(true);
+    setIsModalOpen(true);
   };
 
-  const handleCopyLink = () => {
-    if (selectedProduct) {
-      const link = `https://marketsaas.com/p/${selectedProduct.id}?prod=${selectedProduct.id}&ref=joao123`;
-      navigator.clipboard.writeText(link);
+  const handleQuickAddToCart = (e: React.MouseEvent, product: typeof saasProducts[0]) => {
+    e.stopPropagation();
+    const isInCart = items.some((item) => item.id === product.id);
+    if (isInCart) {
       toast({
-        title: "Link copiado!",
-        description: "O link de afiliado foi copiado para a área de transferência.",
+        title: "Já está no carrinho",
+        description: `${product.name} já foi adicionado ao carrinho.`,
       });
+      return;
     }
+    addItem({
+      id: product.id,
+      name: product.name,
+      producer: product.producer,
+      price: product.price,
+      model: product.model,
+      image: product.image,
+    });
+    toast({
+      title: "Adicionado ao carrinho!",
+      description: `${product.name} foi adicionado ao seu carrinho.`,
+    });
   };
+
+  const handleQuickRequestAffiliation = (e: React.MouseEvent, product: typeof saasProducts[0]) => {
+    e.stopPropagation();
+    toast({
+      title: "Solicitação enviada!",
+      description: `Sua solicitação de afiliação para ${product.name} foi enviada.`,
+    });
+  };
+
+  const isProductInCart = (productId: number) => items.some((item) => item.id === productId);
 
   return (
     <DashboardLayout>
@@ -170,7 +188,7 @@ const Marketplace = () => {
                 variant={filter === "all" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilter("all")}
-                className={filter === "all" ? "bg-primary" : "border-border"}
+                className={`transition-all active:scale-95 ${filter === "all" ? "bg-primary hover:bg-primary/90" : "border-border hover:bg-secondary"}`}
               >
                 Todos
               </Button>
@@ -178,7 +196,7 @@ const Marketplace = () => {
                 variant={filter === "recurring" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilter("recurring")}
-                className={filter === "recurring" ? "bg-primary" : "border-border"}
+                className={`transition-all active:scale-95 ${filter === "recurring" ? "bg-primary hover:bg-primary/90" : "border-border hover:bg-secondary"}`}
               >
                 <RefreshCw className="w-4 h-4 mr-2" />
                 Recorrência
@@ -187,7 +205,7 @@ const Marketplace = () => {
                 variant={filter === "whitelabel" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setFilter("whitelabel")}
-                className={filter === "whitelabel" ? "bg-primary" : "border-border"}
+                className={`transition-all active:scale-95 ${filter === "whitelabel" ? "bg-primary hover:bg-primary/90" : "border-border hover:bg-secondary"}`}
               >
                 <Package className="w-4 h-4 mr-2" />
                 White Label
@@ -212,7 +230,8 @@ const Marketplace = () => {
           {filteredProducts.map((product) => (
             <div
               key={product.id}
-              className="glass-card overflow-hidden group hover:border-primary/50 transition-all duration-300"
+              onClick={() => handleCardClick(product)}
+              className="glass-card overflow-hidden group hover:border-primary/50 transition-all duration-300 cursor-pointer hover:shadow-lg hover:shadow-primary/5"
             >
               {/* Product Image */}
               <div className="relative h-40 overflow-hidden">
@@ -246,7 +265,10 @@ const Marketplace = () => {
                 </Badge>
 
                 {/* Play button for video preview */}
-                <button className="absolute top-3 right-3 p-2 rounded-full bg-background/80 hover:bg-background transition-colors">
+                <button 
+                  onClick={(e) => e.stopPropagation()}
+                  className="absolute top-3 right-3 p-2 rounded-full bg-background/80 hover:bg-background active:scale-95 transition-all"
+                >
                   <Play className="w-4 h-4 text-foreground" />
                 </button>
 
@@ -301,14 +323,41 @@ const Marketplace = () => {
                       </span>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handlePromote(product)}
-                    className="bg-primary hover:bg-primary/90"
-                  >
-                    Promover
-                    <ExternalLink className="w-3.5 h-3.5 ml-1.5" />
-                  </Button>
+                  
+                  {/* Action Button based on model */}
+                  {product.model === "whitelabel" ? (
+                    <Button
+                      size="sm"
+                      onClick={(e) => handleQuickAddToCart(e, product)}
+                      disabled={isProductInCart(product.id)}
+                      className={`transition-all active:scale-95 ${
+                        isProductInCart(product.id)
+                          ? "bg-success/20 text-success border border-success/30"
+                          : "bg-primary hover:bg-primary/90"
+                      }`}
+                    >
+                      {isProductInCart(product.id) ? (
+                        <>
+                          <Check className="w-3.5 h-3.5 mr-1.5" />
+                          No Carrinho
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
+                          Comprar
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      onClick={(e) => handleQuickRequestAffiliation(e, product)}
+                      className="bg-primary hover:bg-primary/90 transition-all active:scale-95"
+                    >
+                      <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                      Afiliar
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>
@@ -325,77 +374,12 @@ const Marketplace = () => {
           </div>
         )}
 
-        {/* Promote Dialog */}
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-          <DialogContent className="bg-card border-border max-w-lg">
-            <DialogHeader>
-              <DialogTitle className="text-foreground flex items-center gap-3">
-                <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                  <Package className="w-5 h-5 text-primary" />
-                </div>
-                Promover {selectedProduct?.name}
-              </DialogTitle>
-            </DialogHeader>
-
-            {selectedProduct && (
-              <div className="space-y-4 mt-4">
-                {/* Rules */}
-                <div className="p-4 rounded-xl bg-secondary/50 border border-border">
-                  <h4 className="font-medium text-foreground mb-2 flex items-center gap-2">
-                    <Users className="w-4 h-4 text-primary" />
-                    Regras de Afiliação
-                  </h4>
-                  <p className="text-sm text-muted-foreground">{selectedProduct.rules}</p>
-                </div>
-
-                {/* Commission Info */}
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-xl bg-success/10 border border-success/20">
-                    <p className="text-sm text-muted-foreground mb-1">Sua Comissão</p>
-                    <p className="text-2xl font-bold text-success">{selectedProduct.commission}%</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      = R$ {((selectedProduct.price * selectedProduct.commission) / 100).toFixed(2)} por venda
-                    </p>
-                  </div>
-                  <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
-                    <p className="text-sm text-muted-foreground mb-1">Tipo</p>
-                    <p className="text-lg font-bold text-primary">
-                      {selectedProduct.model === "recurring" ? "Recorrente" : "Venda Única"}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {selectedProduct.model === "recurring" ? "Comissão mensal" : "Pagamento único"}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Affiliate Link */}
-                <div className="space-y-2">
-                  <label className="text-sm font-medium text-foreground">Seu Link de Afiliado</label>
-                  <div className="flex gap-2">
-                    <Input
-                      value={`https://marketsaas.com/p/${selectedProduct.id}?prod=${selectedProduct.id}&ref=joao123`}
-                      readOnly
-                      className="bg-secondary border-border text-sm"
-                    />
-                    <Button onClick={handleCopyLink} variant="outline" className="border-border shrink-0">
-                      <Copy className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
-
-                <div className="flex gap-3 pt-2">
-                  <Button onClick={handleCopyLink} className="flex-1 bg-primary hover:bg-primary/90">
-                    <Copy className="w-4 h-4 mr-2" />
-                    Copiar Link
-                  </Button>
-                  <Button variant="outline" className="border-border" onClick={() => setIsDialogOpen(false)}>
-                    <X className="w-4 h-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </DialogContent>
-        </Dialog>
+        {/* Product Detail Modal */}
+        <ProductDetailModal
+          product={selectedProduct}
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+        />
       </div>
     </DashboardLayout>
   );
