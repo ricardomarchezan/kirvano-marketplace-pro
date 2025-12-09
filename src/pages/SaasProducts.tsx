@@ -24,21 +24,42 @@ import {
   Users, 
   TrendingDown, 
   DollarSign, 
-  Edit, 
-  Trash2, 
   RefreshCw,
   FileCode,
   Key,
   Link,
   Upload,
-  AlertCircle
+  AlertCircle,
+  Image,
+  Video
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
+import { ProductManagementPanel } from "@/components/saas/ProductManagementPanel";
 
 type BusinessModel = "recurring" | "whitelabel" | "";
 
-const myProducts = [
+interface Product {
+  id: number;
+  name: string;
+  description: string;
+  price: number;
+  commission: number;
+  activeClients: number;
+  churn: number;
+  mrr: number;
+  status: string;
+  model: "recurring" | "whitelabel";
+  totalSales?: number;
+  totalRevenue?: number;
+  images?: string[];
+  videoUrl?: string;
+  supportEmail?: string;
+  supportUrl?: string;
+  autoApproval?: boolean;
+}
+
+const myProducts: Product[] = [
   {
     id: 1,
     name: "MeuSaaS Pro",
@@ -49,7 +70,12 @@ const myProducts = [
     churn: 2.3,
     mrr: 30732,
     status: "active",
-    model: "recurring" as const,
+    model: "recurring",
+    images: [
+      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400",
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400",
+    ],
+    autoApproval: true,
   },
   {
     id: 2,
@@ -61,7 +87,11 @@ const myProducts = [
     churn: 3.1,
     mrr: 8633,
     status: "active",
-    model: "recurring" as const,
+    model: "recurring",
+    images: [
+      "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=400",
+    ],
+    autoApproval: false,
   },
   {
     id: 3,
@@ -73,9 +103,13 @@ const myProducts = [
     churn: 0,
     mrr: 0,
     status: "active",
-    model: "whitelabel" as const,
+    model: "whitelabel",
     totalSales: 45,
     totalRevenue: 22365,
+    images: [
+      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400",
+    ],
+    autoApproval: true,
   },
 ];
 
@@ -83,6 +117,7 @@ const SaasProducts = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [businessModel, setBusinessModel] = useState<BusinessModel>("");
   const [acceptTerms, setAcceptTerms] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
   const handleSubmit = () => {
     if (!businessModel) {
@@ -112,6 +147,18 @@ const SaasProducts = () => {
     setAcceptTerms(false);
   };
 
+  // If a product is selected, show the management panel
+  if (selectedProduct) {
+    return (
+      <DashboardLayout>
+        <ProductManagementPanel
+          product={selectedProduct}
+          onBack={() => setSelectedProduct(null)}
+        />
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -131,7 +178,7 @@ const SaasProducts = () => {
             }
           }}>
             <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90">
+              <Button className="bg-primary hover:bg-primary/90 transition-colors">
                 <Plus className="w-4 h-4 mr-2" />
                 Cadastrar Novo SaaS
               </Button>
@@ -189,6 +236,39 @@ const SaasProducts = () => {
                     className="bg-secondary border-border resize-none"
                     rows={3}
                   />
+                </div>
+
+                {/* Media Fields */}
+                <div className="p-4 rounded-xl bg-secondary/50 border border-border space-y-4">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <Image className="w-4 h-4 text-primary" />
+                    <span className="font-medium text-sm">Mídia de Apresentação</span>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="images" className="flex items-center gap-2">
+                      <Image className="w-4 h-4 text-muted-foreground" />
+                      URLs das Imagens (separadas por vírgula)
+                    </Label>
+                    <Textarea
+                      id="images"
+                      placeholder="https://exemplo.com/imagem1.jpg, https://exemplo.com/imagem2.jpg"
+                      className="bg-background border-border resize-none"
+                      rows={2}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="videoUrl" className="flex items-center gap-2">
+                      <Video className="w-4 h-4 text-muted-foreground" />
+                      URL do Vídeo de Apresentação
+                    </Label>
+                    <Input
+                      id="videoUrl"
+                      placeholder="https://youtube.com/watch?v=... ou https://vimeo.com/..."
+                      className="bg-background border-border"
+                    />
+                  </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -314,7 +394,7 @@ const SaasProducts = () => {
 
                 <Button 
                   onClick={handleSubmit}
-                  className="w-full bg-primary hover:bg-primary/90 mt-4"
+                  className="w-full bg-primary hover:bg-primary/90 mt-4 transition-colors"
                   disabled={!businessModel || (businessModel === "whitelabel" && !acceptTerms)}
                 >
                   Cadastrar Produto
@@ -324,10 +404,14 @@ const SaasProducts = () => {
           </Dialog>
         </div>
 
-        {/* Products Grid */}
+        {/* Products Grid - Enhanced with click to manage */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {myProducts.map((product) => (
-            <div key={product.id} className="glass-card p-6">
+            <div
+              key={product.id}
+              onClick={() => setSelectedProduct(product)}
+              className="glass-card p-6 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+            >
               <div className="flex items-start justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
@@ -354,14 +438,6 @@ const SaasProducts = () => {
                     </div>
                     <p className="text-sm text-muted-foreground">{product.description}</p>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-foreground">
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
                 </div>
               </div>
 
@@ -399,7 +475,7 @@ const SaasProducts = () => {
                         <Package className="w-4 h-4 text-warning" />
                         <span className="text-xs text-muted-foreground">Vendas Totais</span>
                       </div>
-                      <p className="text-xl font-bold text-foreground">{(product as any).totalSales || 0}</p>
+                      <p className="text-xl font-bold text-foreground">{product.totalSales || 0}</p>
                     </div>
                     <div className="p-3 rounded-lg bg-secondary/50">
                       <div className="flex items-center gap-2 mb-1">
@@ -407,7 +483,7 @@ const SaasProducts = () => {
                         <span className="text-xs text-muted-foreground">Receita Total</span>
                       </div>
                       <p className="text-xl font-bold text-foreground">
-                        R$ {((product as any).totalRevenue || 0).toLocaleString("pt-BR")}
+                        R$ {(product.totalRevenue || 0).toLocaleString("pt-BR")}
                       </p>
                     </div>
                   </>
@@ -416,19 +492,23 @@ const SaasProducts = () => {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xs text-muted-foreground">Comissão</span>
                   </div>
-                  <p className="text-xl font-bold text-success">{product.commission}%</p>
+                  <p className="text-xl font-bold text-primary">{product.commission}%</p>
+                </div>
+                <div className="p-3 rounded-lg bg-secondary/50">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-muted-foreground">Preço</span>
+                  </div>
+                  <p className="text-xl font-bold text-foreground">
+                    R$ {product.price}
+                    {product.model === "recurring" && <span className="text-xs font-normal">/mês</span>}
+                  </p>
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-                <span className="text-sm text-muted-foreground">
-                  Preço: <span className="text-foreground font-medium">
-                    R$ {product.price}{product.model === "recurring" ? "/mês" : " (único)"}
-                  </span>
-                </span>
-                <span className="px-2 py-1 rounded-full bg-success/10 text-success text-xs font-medium">
-                  Ativo
-                </span>
+              <div className="mt-4 pt-4 border-t border-border">
+                <p className="text-xs text-muted-foreground text-center">
+                  Clique para gerenciar produto
+                </p>
               </div>
             </div>
           ))}

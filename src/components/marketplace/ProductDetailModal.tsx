@@ -34,6 +34,8 @@ interface Product {
   category: string;
   model: "recurring" | "whitelabel";
   image: string;
+  images?: string[];
+  videoUrl?: string;
   description: string;
   benefits: string[];
   rules: string;
@@ -101,37 +103,62 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
         </DialogHeader>
 
         <div className="space-y-6 mt-4">
-          {/* Media Section */}
-          <div className="relative rounded-xl overflow-hidden">
-            <img
-              src={product.image}
-              alt={product.name}
-              className="w-full h-56 object-cover"
-            />
-            <button className="absolute inset-0 flex items-center justify-center bg-background/40 opacity-0 hover:opacity-100 transition-opacity">
-              <div className="p-4 rounded-full bg-primary/90 hover:bg-primary transition-colors">
-                <Play className="w-8 h-8 text-primary-foreground" />
-              </div>
-            </button>
-            <Badge
-              className={`absolute top-4 left-4 ${
-                product.model === "recurring"
-                  ? "bg-primary/90 text-primary-foreground"
-                  : "bg-warning/90 text-warning-foreground"
-              }`}
-            >
-              {product.model === "recurring" ? (
-                <>
-                  <RefreshCw className="w-3 h-3 mr-1" />
-                  Recorrência
-                </>
+          {/* Media Section - Enhanced with gallery and video */}
+          <div className="space-y-3">
+            {/* Main Media */}
+            <div className="relative rounded-xl overflow-hidden">
+              {product.videoUrl ? (
+                <div className="w-full h-56 bg-secondary flex items-center justify-center">
+                  <a
+                    href={product.videoUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-4 rounded-full bg-primary/90 hover:bg-primary transition-colors"
+                  >
+                    <Play className="w-8 h-8 text-primary-foreground" />
+                  </a>
+                </div>
               ) : (
-                <>
-                  <Package className="w-3 h-3 mr-1" />
-                  White Label
-                </>
+                <img
+                  src={product.image}
+                  alt={product.name}
+                  className="w-full h-56 object-cover"
+                />
               )}
-            </Badge>
+              <Badge
+                className={`absolute top-4 left-4 ${
+                  product.model === "recurring"
+                    ? "bg-primary/90 text-primary-foreground"
+                    : "bg-warning/90 text-warning-foreground"
+                }`}
+              >
+                {product.model === "recurring" ? (
+                  <>
+                    <RefreshCw className="w-3 h-3 mr-1" />
+                    Recorrência
+                  </>
+                ) : (
+                  <>
+                    <Package className="w-3 h-3 mr-1" />
+                    White Label
+                  </>
+                )}
+              </Badge>
+            </div>
+
+            {/* Image Gallery */}
+            {product.images && product.images.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-2">
+                {product.images.map((img, index) => (
+                  <img
+                    key={index}
+                    src={img}
+                    alt={`${product.name} - Imagem ${index + 1}`}
+                    className="w-20 h-14 object-cover rounded-lg border border-border flex-shrink-0 hover:ring-2 hover:ring-primary/50 transition-all cursor-pointer"
+                  />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Description */}
