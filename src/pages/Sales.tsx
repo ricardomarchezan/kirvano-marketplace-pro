@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Search, Filter, Download, TrendingUp, DollarSign, Users, RefreshCw, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { DateRangePicker } from "@/components/ui/date-range-picker";
+import { DateRange } from "react-day-picker";
+import { subDays } from "date-fns";
 
 const sales = [
   {
@@ -78,6 +82,11 @@ const sales = [
 ];
 
 const Sales = () => {
+  const [dateRange, setDateRange] = useState<DateRange | undefined>({
+    from: subDays(new Date(), 30),
+    to: new Date(),
+  });
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -169,14 +178,18 @@ const Sales = () => {
 
         {/* Filters */}
         <div className="glass-card p-4">
-          <div className="flex items-center gap-4">
-            <div className="relative flex-1 max-w-md">
+          <div className="flex items-center gap-4 flex-wrap">
+            <div className="relative flex-1 min-w-[200px] max-w-md">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
                 placeholder="Buscar transações..."
                 className="pl-10 bg-secondary border-border"
               />
             </div>
+            <DateRangePicker
+              dateRange={dateRange}
+              onDateRangeChange={setDateRange}
+            />
             <Button variant="outline" className="border-border hover:bg-secondary transition-all active:scale-95">
               <Filter className="w-4 h-4 mr-2" />
               Filtros
