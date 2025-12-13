@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Copy, Gift, Users, DollarSign, Share2, Trophy, Star } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 
 const referrals = [
   { name: "Carlos Silva", email: "carlos@email.com", status: "active", earned: 150 },
@@ -11,9 +12,15 @@ const referrals = [
 ];
 
 const Referral = () => {
-  const referralLink = "https://marketsaas.com/r/joao123";
+  const { user } = useAuth();
+  
+  // Generate referral link with real user ID
+  const referralLink = user 
+    ? `https://marketsaas.com/r/${user.id}`
+    : '';
 
   const handleCopy = () => {
+    if (!referralLink) return;
     navigator.clipboard.writeText(referralLink);
     toast({
       title: "Link copiado!",
