@@ -37,7 +37,7 @@ import { useData } from "@/contexts/DataContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Product {
-  id: number;
+  id: string;
   name: string;
   description: string;
   price: number;
@@ -68,11 +68,8 @@ const tabs = [
   { id: "integrations", label: "Integrações", icon: Puzzle },
 ];
 
-const mockOffers = [
-  { id: 1, name: "Plano Mensal", type: "Recorrente", price: 197, status: "active" },
-  { id: 2, name: "Plano Anual", type: "Recorrente", price: 1970, status: "active" },
-  { id: 3, name: "BLACKFRIDAY30", type: "Cupom", price: -30, status: "active" },
-];
+// Note: Offers are stored per product - this should be managed via state or database
+// For now, we'll show the product's main offer
 
 interface AffiliateData {
   id: string;
@@ -106,80 +103,125 @@ function AffiliationTabContent({ product, autoApproval, setAutoApproval, globalC
     totalCommission: 0,
   });
 
-  useEffect(() => {
-    const fetchAffiliates = async () => {
-      try {
-        setLoading(true);
-        // Fetch affiliations for this product
-        const { data: affiliations, error } = await supabase
-          .from('affiliations')
-          .select('*')
-          .eq('product_id', String(product.id));
+  const fetchAffiliates = async () => {
+    try {
+      setLoading(true);
+      // Fetch affiliations for this product with profile data
+      const { data: affiliations, error } = await supabase
+        .from('affiliations')
+        .select('*')
+        .eq('product_id', product.id);
 
-        if (error) throw error;
+      if (error) throw error;
 
-        // Fetch sales data for these affiliates
-        const { data: sales } = await supabase
-          .from('sales')
-          .select('*')
-          .eq('product_id', String(product.id));
-
-        // Calculate metrics per affiliate
-        const affiliateMap = new Map<string, AffiliateData>();
+      // Fetch profiles for all affiliates
+      const userIds = affiliations?.map(a => a.user_id) || [];
+      let profilesMap: Record<string, { name: string; email: string }> = {};
+      
+      if (userIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .in('id', userIds);
         
-        affiliations?.forEach(aff => {
-          const affiliateSales = sales?.filter(s => s.affiliate_id === aff.user_id) || [];
-          const revenue = affiliateSales.reduce((sum, s) => sum + Number(s.amount), 0);
-          const commission = affiliateSales.reduce((sum, s) => sum + Number(s.commission_amount), 0);
-          
-          affiliateMap.set(aff.id, {
-            ...aff,
-            sales_count: affiliateSales.length,
-            revenue,
-            commission_paid: commission,
-          });
+        profiles?.forEach(p => {
+          profilesMap[p.id] = { name: p.name, email: p.email };
         });
-
-        const affiliatesList = Array.from(affiliateMap.values());
-        setAffiliates(affiliatesList);
-
-        // Calculate totals
-        const activeAffiliates = affiliatesList.filter(a => a.status === 'approved' || a.status === 'active');
-        setMetrics({
-          totalAffiliates: activeAffiliates.length,
-          totalSales: affiliatesList.reduce((sum, a) => sum + (a.sales_count || 0), 0),
-          totalRevenue: affiliatesList.reduce((sum, a) => sum + (a.revenue || 0), 0),
-          totalCommission: affiliatesList.reduce((sum, a) => sum + (a.commission_paid || 0), 0),
-        });
-      } catch (error) {
-        console.error('Error fetching affiliates:', error);
-      } finally {
-        setLoading(false);
       }
-    };
 
+      // Fetch sales data for these affiliates
+      const { data: sales } = await supabase
+        .from('sales')
+        .select('*')
+        .eq('product_id', product.id);
+
+      // Calculate metrics per affiliate
+      const affiliatesList: AffiliateData[] = (affiliations || []).map(aff => {
+        const affiliateSales = sales?.filter(s => s.affiliate_id === aff.user_id) || [];
+        const revenue = affiliateSales.reduce((sum, s) => sum + Number(s.amount), 0);
+        const commission = affiliateSales.reduce((sum, s) => sum + Number(s.commission_amount), 0);
+        
+        return {
+          ...aff,
+          profile: profilesMap[aff.user_id],
+          sales_count: affiliateSales.length,
+          revenue,
+          commission_paid: commission,
+        };
+      });
+
+      setAffiliates(affiliatesList);
+
+      // Calculate totals
+      const activeAffiliates = affiliatesList.filter(a => a.status === 'approved' || a.status === 'active');
+      setMetrics({
+        totalAffiliates: activeAffiliates.length,
+        totalSales: affiliatesList.reduce((sum, a) => sum + (a.sales_count || 0), 0),
+        totalRevenue: affiliatesList.reduce((sum, a) => sum + (a.revenue || 0), 0),
+        totalCommission: affiliatesList.reduce((sum, a) => sum + (a.commission_paid || 0), 0),
+      });
+    } catch (error) {
+      console.error('Error fetching affiliates:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     fetchAffiliates();
   }, [product.id]);
 
   const pendingAffiliates = affiliates.filter(a => a.status === 'pending');
   const activeAffiliates = affiliates.filter(a => a.status === 'approved' || a.status === 'active');
 
-  const handleApprove = async (affiliateId: string) => {
+  const handleApprove = async (affiliateId: string, affiliateUserId: string) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('affiliations')
         .update({ status: 'approved' })
         .eq('id', affiliateId);
       
-      setAffiliates(prev => prev.map(a => 
-        a.id === affiliateId ? { ...a, status: 'approved' } : a
-      ));
+      if (error) throw error;
+      
+      // Notify the affiliate via localStorage (since we're using local notifications)
+      const affiliate = affiliates.find(a => a.id === affiliateId);
+      if (affiliate) {
+        const targetStorageKey = `notifications_${affiliateUserId}`;
+        const existingNotifications = localStorage.getItem(targetStorageKey);
+        let targetNotifications: any[] = [];
+        
+        if (existingNotifications) {
+          try {
+            targetNotifications = JSON.parse(existingNotifications);
+          } catch {
+            targetNotifications = [];
+          }
+        }
+        
+        const newNotification = {
+          id: crypto.randomUUID(),
+          user_id: affiliateUserId,
+          type: 'affiliation_approved',
+          title: 'Afiliação Aprovada!',
+          message: `Sua solicitação de afiliação ao produto "${product.name}" foi aprovada! Você já pode começar a promover.`,
+          data: { product_id: product.id, product_name: product.name },
+          read: false,
+          created_at: new Date().toISOString(),
+        };
+        
+        targetNotifications = [newNotification, ...targetNotifications];
+        localStorage.setItem(targetStorageKey, JSON.stringify(targetNotifications));
+      }
+      
+      // Refresh the list
+      await fetchAffiliates();
       
       toast({
         title: "Afiliado aprovado!",
         description: "O afiliado foi aprovado com sucesso.",
       });
     } catch (error) {
+      console.error('Error approving affiliate:', error);
       toast({
         title: "Erro",
         description: "Não foi possível aprovar o afiliado.",
@@ -188,22 +230,51 @@ function AffiliationTabContent({ product, autoApproval, setAutoApproval, globalC
     }
   };
 
-  const handleReject = async (affiliateId: string) => {
+  const handleReject = async (affiliateId: string, affiliateUserId: string) => {
     try {
-      await supabase
+      const { error } = await supabase
         .from('affiliations')
         .update({ status: 'rejected' })
         .eq('id', affiliateId);
       
-      setAffiliates(prev => prev.map(a => 
-        a.id === affiliateId ? { ...a, status: 'rejected' } : a
-      ));
+      if (error) throw error;
+      
+      // Notify the affiliate
+      const targetStorageKey = `notifications_${affiliateUserId}`;
+      const existingNotifications = localStorage.getItem(targetStorageKey);
+      let targetNotifications: any[] = [];
+      
+      if (existingNotifications) {
+        try {
+          targetNotifications = JSON.parse(existingNotifications);
+        } catch {
+          targetNotifications = [];
+        }
+      }
+      
+      const newNotification = {
+        id: crypto.randomUUID(),
+        user_id: affiliateUserId,
+        type: 'affiliation_rejected',
+        title: 'Afiliação Recusada',
+        message: `Sua solicitação de afiliação ao produto "${product.name}" foi recusada pelo produtor.`,
+        data: { product_id: product.id, product_name: product.name },
+        read: false,
+        created_at: new Date().toISOString(),
+      };
+      
+      targetNotifications = [newNotification, ...targetNotifications];
+      localStorage.setItem(targetStorageKey, JSON.stringify(targetNotifications));
+      
+      // Refresh the list
+      await fetchAffiliates();
       
       toast({
         title: "Afiliado rejeitado",
         description: "A solicitação foi recusada.",
       });
     } catch (error) {
+      console.error('Error rejecting affiliate:', error);
       toast({
         title: "Erro",
         description: "Não foi possível rejeitar o afiliado.",
@@ -332,11 +403,11 @@ function AffiliationTabContent({ product, autoApproval, setAutoApproval, globalC
                   <TableCell className="text-muted-foreground text-sm">
                     {new Date(affiliate.created_at).toLocaleDateString('pt-BR')}
                   </TableCell>
-                  <TableCell className="text-right">
+                    <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <Button 
                         size="sm" 
-                        onClick={() => handleApprove(affiliate.id)}
+                        onClick={() => handleApprove(affiliate.id, affiliate.user_id)}
                         className="h-7 text-xs bg-success hover:bg-success/90"
                       >
                         <Check className="w-3 h-3 mr-1" />
@@ -345,7 +416,7 @@ function AffiliationTabContent({ product, autoApproval, setAutoApproval, globalC
                       <Button 
                         size="sm" 
                         variant="destructive"
-                        onClick={() => handleReject(affiliate.id)}
+                        onClick={() => handleReject(affiliate.id, affiliate.user_id)}
                         className="h-7 text-xs"
                       >
                         <X className="w-3 h-3 mr-1" />
@@ -619,52 +690,50 @@ export function ProductManagementPanel({ product, onBack }: ProductManagementPan
           {activeTab === "offers" && (
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-foreground">Ofertas Cadastradas</h3>
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">Ofertas do Produto</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Gerencie as ofertas e preços deste produto
+                  </p>
+                </div>
                 <Button className="bg-primary hover:bg-primary/90 transition-colors">
                   <Plus className="w-4 h-4 mr-2" />
                   Nova Oferta
                 </Button>
               </div>
               
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border hover:bg-transparent">
-                    <TableHead className="text-muted-foreground">Nome</TableHead>
-                    <TableHead className="text-muted-foreground">Tipo</TableHead>
-                    <TableHead className="text-muted-foreground">Valor</TableHead>
-                    <TableHead className="text-muted-foreground">Status</TableHead>
-                    <TableHead className="text-muted-foreground text-right">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {mockOffers.map((offer) => (
-                    <TableRow key={offer.id} className="border-border hover:bg-secondary/50 transition-colors">
-                      <TableCell className="font-medium text-foreground">{offer.name}</TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="border-border">
-                          {offer.type}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className={offer.price < 0 ? "text-success" : "text-foreground"}>
-                        {offer.price < 0 ? `${offer.price}%` : `R$ ${offer.price}`}
-                      </TableCell>
-                      <TableCell>
-                        <Badge className="bg-success/10 text-success border-0">Ativo</Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button size="icon" variant="ghost" className="hover:bg-secondary transition-colors">
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                          <Button size="icon" variant="ghost" className="hover:bg-destructive/10 hover:text-destructive transition-colors">
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {/* Main Product Offer */}
+              <div className="p-4 rounded-xl bg-secondary/50 border border-border">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h4 className="font-medium text-foreground">{product.name}</h4>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {product.model === 'recurring' ? 'Assinatura Recorrente' : 'Licença Única (White Label)'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-2xl font-bold text-foreground">R$ {product.price}</p>
+                    <Badge className="bg-success/10 text-success border-0 mt-1">Ativo</Badge>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 mt-4">
+                  <Button size="sm" variant="outline">
+                    <Edit className="w-3 h-3 mr-1" />
+                    Editar Preço
+                  </Button>
+                </div>
+              </div>
+
+              {/* Empty state for additional offers */}
+              <div className="text-center py-8 border border-dashed border-border rounded-xl">
+                <Tag className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+                <p className="text-muted-foreground">
+                  Nenhuma oferta adicional cadastrada
+                </p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Crie cupons de desconto ou ofertas especiais
+                </p>
+              </div>
             </div>
           )}
 
