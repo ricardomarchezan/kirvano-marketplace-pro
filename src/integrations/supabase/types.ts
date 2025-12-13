@@ -14,6 +14,95 @@ export type Database = {
   }
   public: {
     Tables: {
+      affiliations: {
+        Row: {
+          created_at: string
+          id: string
+          product_id: string
+          referral_code: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          product_id: string
+          referral_code: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          product_id?: string
+          referral_code?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "affiliations_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          auto_approve_affiliates: boolean | null
+          commission: number
+          created_at: string
+          description: string | null
+          github_url: string | null
+          id: string
+          image_url: string | null
+          model: string
+          name: string
+          owner_id: string
+          price: number
+          status: string
+          updated_at: string
+          video_url: string | null
+          webhook_url: string | null
+        }
+        Insert: {
+          auto_approve_affiliates?: boolean | null
+          commission?: number
+          created_at?: string
+          description?: string | null
+          github_url?: string | null
+          id?: string
+          image_url?: string | null
+          model: string
+          name: string
+          owner_id: string
+          price?: number
+          status?: string
+          updated_at?: string
+          video_url?: string | null
+          webhook_url?: string | null
+        }
+        Update: {
+          auto_approve_affiliates?: boolean | null
+          commission?: number
+          created_at?: string
+          description?: string | null
+          github_url?: string | null
+          id?: string
+          image_url?: string | null
+          model?: string
+          name?: string
+          owner_id?: string
+          price?: number
+          status?: string
+          updated_at?: string
+          video_url?: string | null
+          webhook_url?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           cpf_cnpj: string | null
@@ -46,6 +135,94 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      sales: {
+        Row: {
+          affiliate_id: string | null
+          amount: number
+          commission_amount: number
+          created_at: string
+          customer_email: string
+          customer_name: string | null
+          id: string
+          producer_id: string
+          product_id: string
+          status: string
+        }
+        Insert: {
+          affiliate_id?: string | null
+          amount: number
+          commission_amount?: number
+          created_at?: string
+          customer_email: string
+          customer_name?: string | null
+          id?: string
+          producer_id: string
+          product_id: string
+          status?: string
+        }
+        Update: {
+          affiliate_id?: string | null
+          amount?: number
+          commission_amount?: number
+          created_at?: string
+          customer_email?: string
+          customer_name?: string | null
+          id?: string
+          producer_id?: string
+          product_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string
+          id: string
+          sale_id: string | null
+          status: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description: string
+          id?: string
+          sale_id?: string | null
+          status?: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string
+          id?: string
+          sale_id?: string | null
+          status?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

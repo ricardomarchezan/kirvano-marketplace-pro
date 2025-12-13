@@ -14,89 +14,16 @@ import {
   RotateCcw,
   XCircle,
   TrendingUp,
+  Loader2,
 } from "lucide-react";
+import { useData, Transaction } from "@/contexts/DataContext";
+import { useAuth } from "@/contexts/AuthContext";
 
-type TransactionType = "credit" | "debit" | "refund";
-type TransactionStatus = "completed" | "pending" | "refunded";
-
-interface Transaction {
-  id: number;
-  type: TransactionType;
-  description: string;
-  amount: number;
-  date: string;
-  status: TransactionStatus;
-}
-
-const transactions: Transaction[] = [
-  {
-    id: 1,
-    type: "credit",
-    description: "Comissão - CloudCRM Pro",
-    amount: 59.1,
-    date: "2024-01-15",
-    status: "completed",
-  },
-  {
-    id: 2,
-    type: "credit",
-    description: "Comissão - AutoEmail AI",
-    amount: 38.8,
-    date: "2024-01-14",
-    status: "completed",
-  },
-  {
-    id: 3,
-    type: "debit",
-    description: "Saque - Conta Principal",
-    amount: 500.0,
-    date: "2024-01-13",
-    status: "completed",
-  },
-  {
-    id: 4,
-    type: "credit",
-    description: "Comissão - DataAnalytics",
-    amount: 74.25,
-    date: "2024-01-12",
-    status: "pending",
-  },
-  {
-    id: 5,
-    type: "refund",
-    description: "Reembolso - TaskFlow Pro",
-    amount: 16.45,
-    date: "2024-01-11",
-    status: "refunded",
-  },
-  {
-    id: 6,
-    type: "credit",
-    description: "Comissão - InvoiceMaster",
-    amount: 30.15,
-    date: "2024-01-10",
-    status: "completed",
-  },
-  {
-    id: 7,
-    type: "debit",
-    description: "Saque - PIX",
-    amount: 1000.0,
-    date: "2024-01-08",
-    status: "completed",
-  },
-  {
-    id: 8,
-    type: "refund",
-    description: "Chargeback - Cliente #4521",
-    amount: 197.0,
-    date: "2024-01-07",
-    status: "refunded",
-  },
-];
+type TransactionType = "credit" | "debit" | "refund" | "withdrawal";
+type TransactionStatus = "completed" | "pending";
 
 const getTransactionStyles = (type: TransactionType, status: TransactionStatus) => {
-  if (status === "refunded" || type === "refund") {
+  if (type === "refund") {
     return {
       bg: "bg-muted/50",
       icon: RotateCcw,
@@ -139,17 +66,20 @@ const getStatusBadge = (status: TransactionStatus) => {
           Pendente
         </Badge>
       );
-    case "refunded":
-      return (
-        <Badge variant="secondary" className="bg-muted text-muted-foreground border-0">
-          <XCircle className="w-3 h-3 mr-1" />
-          Reembolsado
-        </Badge>
-      );
   }
 };
 
 const Finances = () => {
+  const { transactions, metrics, loading } = useData();
+  const { profile } = useAuth();
+
+  const formatCurrency = (value: number) => {
+    return value.toLocaleString("pt-BR", {
+      style: "currency",
+      currency: "BRL",
+    });
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -161,7 +91,7 @@ const Finances = () => {
           </p>
         </div>
 
-        {/* Balance Cards - Enhanced */}
+        {/* Balance Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="glass-card p-6 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-success/10 rounded-full -translate-y-1/2 translate-x-1/2" />
@@ -172,10 +102,19 @@ const Finances = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Saldo Disponível</p>
-                  <p className="text-3xl font-bold text-foreground">R$ 32.450,00</p>
+                  {loading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mt-1" />
+                  ) : (
+                    <p className="text-3xl font-bold text-foreground">
+                      {formatCurrency(metrics.availableBalance)}
+                    </p>
+                  )}
                 </div>
               </div>
-              <Button className="w-full bg-success hover:bg-success/90 text-success-foreground font-semibold">
+              <Button 
+                className="w-full bg-success hover:bg-success/90 text-success-foreground font-semibold"
+                disabled={metrics.availableBalance <= 0}
+              >
                 Solicitar Saque
               </Button>
             </div>
@@ -190,7 +129,13 @@ const Finances = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Saldo Pendente</p>
-                  <p className="text-3xl font-bold text-foreground">R$ 13.440,00</p>
+                  {loading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mt-1" />
+                  ) : (
+                    <p className="text-3xl font-bold text-foreground">
+                      {formatCurrency(metrics.pendingBalance)}
+                    </p>
+                  )}
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">
@@ -208,7 +153,13 @@ const Finances = () => {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Total Sacado</p>
-                  <p className="text-3xl font-bold text-foreground">R$ 89.230,00</p>
+                  {loading ? (
+                    <Loader2 className="w-6 h-6 animate-spin text-muted-foreground mt-1" />
+                  ) : (
+                    <p className="text-3xl font-bold text-foreground">
+                      {formatCurrency(metrics.totalWithdrawn)}
+                    </p>
+                  )}
                 </div>
               </div>
               <p className="text-sm text-muted-foreground">Desde o início da conta</p>
@@ -217,7 +168,7 @@ const Finances = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Transactions - Enhanced */}
+          {/* Transactions */}
           <div className="lg:col-span-2 glass-card p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-lg font-semibold text-foreground">Extrato Detalhado</h2>
@@ -236,65 +187,80 @@ const Finances = () => {
                 </div>
               </div>
             </div>
-            <div className="space-y-3">
-              {transactions.map((transaction) => {
-                const styles = getTransactionStyles(transaction.type, transaction.status);
-                const Icon = styles.icon;
-                
-                return (
-                  <div
-                    key={transaction.id}
-                    className={`flex items-center justify-between p-4 rounded-xl hover:bg-secondary/80 transition-colors ${
-                      transaction.status === "refunded" ? "opacity-70" : ""
-                    }`}
-                    style={{ backgroundColor: `hsl(var(--secondary) / 0.5)` }}
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className={`p-2 rounded-lg ${styles.bg}`}>
-                        <Icon className={`w-5 h-5 ${styles.iconColor}`} />
+            
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : transactions.length === 0 ? (
+              <div className="text-center py-12">
+                <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-3" />
+                <p className="text-muted-foreground">Nenhuma transação ainda</p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Suas transações aparecerão aqui
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {transactions.map((transaction) => {
+                  const styles = getTransactionStyles(transaction.type as TransactionType, transaction.status as TransactionStatus);
+                  const Icon = styles.icon;
+                  
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="flex items-center justify-between p-4 rounded-xl hover:bg-secondary/80 transition-colors"
+                      style={{ backgroundColor: `hsl(var(--secondary) / 0.5)` }}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className={`p-2 rounded-lg ${styles.bg}`}>
+                          <Icon className={`w-5 h-5 ${styles.iconColor}`} />
+                        </div>
+                        <div>
+                          <p className="font-medium text-foreground">
+                            {transaction.description}
+                          </p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(transaction.created_at).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            })}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className={`font-medium ${
-                          transaction.status === "refunded" ? "text-muted-foreground line-through" : "text-foreground"
-                        }`}>
-                          {transaction.description}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(transaction.date).toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "short",
-                            year: "numeric",
-                          })}
-                        </p>
+                      <div className="text-right flex items-center gap-4">
+                        <div>
+                          <p className={`font-semibold text-lg ${styles.amountColor}`}>
+                            {styles.prefix} {formatCurrency(Number(transaction.amount))}
+                          </p>
+                        </div>
+                        {getStatusBadge(transaction.status as TransactionStatus)}
                       </div>
                     </div>
-                    <div className="text-right flex items-center gap-4">
-                      <div>
-                        <p className={`font-semibold text-lg ${styles.amountColor}`}>
-                          {styles.prefix} R$ {transaction.amount.toFixed(2)}
-                        </p>
-                      </div>
-                      {getStatusBadge(transaction.status)}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
-          {/* Payment Configuration - Enhanced */}
+          {/* Payment Configuration */}
           <div className="glass-card p-6">
             <h2 className="text-lg font-semibold text-foreground mb-4">
               Configurar Recebimento
             </h2>
             <div className="space-y-4">
-              {/* Stripe Connect - Active */}
-              <div className="p-4 rounded-xl bg-secondary/50 border-2 border-success/50 relative">
-                <div className="absolute -top-2 -right-2">
-                  <div className="p-1 rounded-full bg-success">
-                    <CheckCircle2 className="w-4 h-4 text-success-foreground" />
+              {/* Stripe Connect */}
+              <div className={`p-4 rounded-xl bg-secondary/50 border-2 relative ${
+                profile?.stripe_account_id ? "border-success/50" : "border-border"
+              }`}>
+                {profile?.stripe_account_id && (
+                  <div className="absolute -top-2 -right-2">
+                    <div className="p-1 rounded-full bg-success">
+                      <CheckCircle2 className="w-4 h-4 text-success-foreground" />
+                    </div>
                   </div>
-                </div>
+                )}
                 <div className="flex items-center gap-3 mb-3">
                   <div className="p-2 rounded-lg bg-primary/10">
                     <CreditCard className="w-5 h-5 text-primary" />
@@ -304,10 +270,16 @@ const Finances = () => {
                     <p className="text-xs text-muted-foreground">Método principal de recebimento</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2 text-success text-sm font-medium">
-                  <CheckCircle2 className="w-4 h-4" />
-                  Conta conectada
-                </div>
+                {profile?.stripe_account_id ? (
+                  <div className="flex items-center gap-2 text-success text-sm font-medium">
+                    <CheckCircle2 className="w-4 h-4" />
+                    Conta conectada
+                  </div>
+                ) : (
+                  <Button className="w-full mt-2" variant="outline">
+                    Conectar Stripe
+                  </Button>
+                )}
               </div>
 
               {/* PIX/TED - Coming Soon */}
@@ -332,19 +304,21 @@ const Finances = () => {
               </div>
 
               {/* Connected Account Info */}
-              <div className="space-y-3 pt-4 border-t border-border">
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground">Conta Stripe Conectada</Label>
-                  <Input
-                    value="acct_1234567890"
-                    disabled
-                    className="bg-secondary border-border text-muted-foreground font-mono text-sm"
-                  />
+              {profile?.stripe_account_id && (
+                <div className="space-y-3 pt-4 border-t border-border">
+                  <div className="space-y-2">
+                    <Label className="text-muted-foreground">Conta Stripe Conectada</Label>
+                    <Input
+                      value={profile.stripe_account_id}
+                      disabled
+                      className="bg-secondary border-border text-muted-foreground font-mono text-sm"
+                    />
+                  </div>
+                  <Button variant="outline" className="w-full border-border">
+                    Gerenciar Conta Stripe
+                  </Button>
                 </div>
-                <Button variant="outline" className="w-full border-border">
-                  Gerenciar Conta Stripe
-                </Button>
-              </div>
+              )}
             </div>
           </div>
         </div>

@@ -1,52 +1,65 @@
 import { Trophy, Target, Zap, Crown, Star, Rocket } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const achievements = [
-  {
-    icon: Trophy,
-    title: "Primeira Venda",
-    description: "Realize sua primeira venda",
-    progress: 100,
-    unlocked: true,
-  },
-  {
-    icon: Target,
-    title: "10K Faturamento",
-    description: "Alcance R$ 10.000 em vendas",
-    progress: 100,
-    unlocked: true,
-  },
-  {
-    icon: Zap,
-    title: "Velocista",
-    description: "10 vendas em um dia",
-    progress: 70,
-    unlocked: false,
-  },
-  {
-    icon: Crown,
-    title: "Nível Expert",
-    description: "R$ 50.000 em comissões",
-    progress: 45,
-    unlocked: false,
-  },
-  {
-    icon: Star,
-    title: "Top Afiliado",
-    description: "Entre no top 10 do mês",
-    progress: 30,
-    unlocked: false,
-  },
-  {
-    icon: Rocket,
-    title: "Lançamento",
-    description: "Promova 5 SaaS diferentes",
-    progress: 60,
-    unlocked: false,
-  },
-];
+import { useData } from "@/contexts/DataContext";
+import { useMemo } from "react";
 
 export function Achievements() {
+  const { metrics, sales, products, affiliations } = useData();
+
+  const achievements = useMemo(() => {
+    const hasFirstSale = sales.some(s => s.status === "completed");
+    const has10kRevenue = metrics.totalRevenue >= 10000;
+    const has50kCommissions = metrics.availableBalance + metrics.pendingBalance >= 50000;
+    const promotedProducts = affiliations.filter(a => a.status === "approved").length;
+
+    return [
+      {
+        icon: Trophy,
+        title: "Primeira Venda",
+        description: "Realize sua primeira venda",
+        progress: hasFirstSale ? 100 : 0,
+        unlocked: hasFirstSale,
+      },
+      {
+        icon: Target,
+        title: "10K Faturamento",
+        description: "Alcance R$ 10.000 em vendas",
+        progress: Math.min(100, (metrics.totalRevenue / 10000) * 100),
+        unlocked: has10kRevenue,
+      },
+      {
+        icon: Zap,
+        title: "Velocista",
+        description: "10 vendas em um dia",
+        progress: 0,
+        unlocked: false,
+      },
+      {
+        icon: Crown,
+        title: "Nível Expert",
+        description: "R$ 50.000 em comissões",
+        progress: Math.min(100, ((metrics.availableBalance + metrics.pendingBalance) / 50000) * 100),
+        unlocked: has50kCommissions,
+      },
+      {
+        icon: Star,
+        title: "Top Afiliado",
+        description: "Entre no top 10 do mês",
+        progress: 0,
+        unlocked: false,
+      },
+      {
+        icon: Rocket,
+        title: "Lançamento",
+        description: "Promova 5 SaaS diferentes",
+        progress: Math.min(100, (promotedProducts / 5) * 100),
+        unlocked: promotedProducts >= 5,
+      },
+    ];
+  }, [metrics, sales, affiliations]);
+
+  const unlockedCount = achievements.filter(a => a.unlocked).length;
+
   return (
     <div className="glass-card p-6 animate-slide-up" style={{ animationDelay: "0.2s" }}>
       <div className="flex items-center justify-between mb-6">
@@ -54,7 +67,7 @@ export function Achievements() {
           <h2 className="text-lg font-semibold text-foreground">Jornada de Conquistas</h2>
           <p className="text-sm text-muted-foreground">Continue evoluindo!</p>
         </div>
-        <span className="text-sm text-primary font-medium">2/6 desbloqueadas</span>
+        <span className="text-sm text-primary font-medium">{unlockedCount}/6 desbloqueadas</span>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
