@@ -23,6 +23,7 @@ import Cadastro from "./pages/Cadastro";
 import RecuperarSenha from "./pages/RecuperarSenha";
 import Profile from "./pages/Profile";
 import Settings from "./pages/Settings";
+import Affiliations from "./pages/Affiliations";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -47,6 +48,7 @@ const App = () => (
                     <Route path="/vendas" element={<ProtectedRoute><Sales /></ProtectedRoute>} />
                     <Route path="/marketplace" element={<ProtectedRoute><Marketplace /></ProtectedRoute>} />
                     <Route path="/saas" element={<ProtectedRoute><SaasProducts /></ProtectedRoute>} />
+                    <Route path="/afiliacoes" element={<ProtectedRoute><Affiliations /></ProtectedRoute>} />
                     <Route path="/financas" element={<ProtectedRoute><Finances /></ProtectedRoute>} />
                     <Route path="/integracoes" element={<ProtectedRoute><Integrations /></ProtectedRoute>} />
                     <Route path="/ajuda" element={<ProtectedRoute><Help /></ProtectedRoute>} />

@@ -10,6 +10,7 @@ import {
   Gift,
   ChevronLeft,
   ChevronRight,
+  Users,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -20,6 +21,7 @@ const menuItems = [
   { icon: TrendingUp, label: "Vendas", path: "/vendas" },
   { icon: Store, label: "Marketplace", path: "/marketplace" },
   { icon: Package, label: "SaaS", path: "/saas" },
+  { icon: Users, label: "Afiliações", path: "/afiliacoes" },
   { icon: Wallet, label: "Finanças", path: "/financas" },
   { icon: Puzzle, label: "Integrações", path: "/integracoes" },
   { icon: HelpCircle, label: "Ajuda e Suporte", path: "/ajuda" },
