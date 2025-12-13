@@ -27,7 +27,8 @@ import { useNotification } from "@/contexts/NotificationContext";
 import { useData } from "@/contexts/DataContext";
 
 interface Product {
-  id: number;
+  id: string;
+  owner_id: string;
   name: string;
   producer: string;
   price: number;
@@ -42,6 +43,7 @@ interface Product {
   description: string;
   benefits: string[];
   rules: string;
+  auto_approve_affiliates?: boolean;
 }
 
 interface ProductDetailModalProps {
@@ -107,20 +109,20 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
     }
 
     try {
-      // Request affiliation through DataContext
-      await requestAffiliation(String(product.id));
+      // Request affiliation through DataContext with proper UUID
+      await requestAffiliation(product.id);
 
-      // Determine if auto-approval is enabled (mock for now, use product.autoApproval if available)
-      const autoApproval = (product as any).autoApproval ?? true;
+      // Determine if auto-approval is enabled
+      const autoApproval = product.auto_approve_affiliates ?? true;
 
       // Create notification for the producer
       const producerNotification = {
-        user_id: (product as any).owner_id || (product as any).producer_id || 'producer',
+        user_id: product.owner_id,
         type: autoApproval ? 'affiliation_approved' as const : 'affiliation_request' as const,
         title: autoApproval ? 'Novo Afiliado Aprovado' : 'Nova Solicitação de Afiliação',
         message: `${profile?.name || 'Um usuário'} (${profile?.email || user.email}) ${autoApproval ? 'foi aprovado automaticamente como afiliado' : 'solicitou afiliação'} do produto "${product.name}"`,
         data: {
-          product_id: String(product.id),
+          product_id: product.id,
           product_name: product.name,
           affiliate_id: user.id,
           affiliate_name: profile?.name || 'Usuário',

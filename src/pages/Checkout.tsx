@@ -9,7 +9,7 @@ const Checkout = () => {
   const { items, removeItem, clearCart, total } = useCart();
   const navigate = useNavigate();
 
-  const handleRemoveItem = (id: number, name: string) => {
+  const handleRemoveItem = (id: string, name: string) => {
     removeItem(id);
     toast({
       title: "Item removido",
