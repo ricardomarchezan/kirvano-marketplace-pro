@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useCart } from "@/contexts/CartContext";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface Product {
   id: number;
@@ -49,14 +50,27 @@ interface ProductDetailModalProps {
 
 export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailModalProps) {
   const { addItem, items } = useCart();
+  const { user } = useAuth();
 
   if (!product) return null;
 
   const isInCart = items.some((item) => item.id === product.id);
+  
+  // Generate affiliate link with real user ID
+  const affiliateLink = user 
+    ? `https://marketsaas.com/p/${product.id}?prod=${product.id}&ref=${user.id}`
+    : '';
 
   const handleCopyLink = () => {
-    const link = `https://marketsaas.com/p/${product.id}?prod=${product.id}&ref=joao123`;
-    navigator.clipboard.writeText(link);
+    if (!affiliateLink) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para copiar o link de afiliado.",
+        variant: "destructive",
+      });
+      return;
+    }
+    navigator.clipboard.writeText(affiliateLink);
     toast({
       title: "Link copiado!",
       description: "O link de afiliado foi copiado para a área de transferência.",
@@ -297,20 +311,28 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
               <label className="text-sm font-medium text-foreground block mb-2">
                 Seu Link de Afiliado (após aprovação)
               </label>
-              <div className="flex gap-2">
-                <Input
-                  value={`https://marketsaas.com/p/${product.id}?prod=${product.id}&ref=joao123`}
-                  readOnly
-                  className="bg-secondary border-border text-sm"
-                />
-                <Button
-                  onClick={handleCopyLink}
-                  variant="outline"
-                  className="border-border shrink-0 hover:bg-secondary transition-all active:scale-[0.98]"
-                >
-                  <Copy className="w-4 h-4" />
-                </Button>
-              </div>
+              {user ? (
+                <div className="flex gap-2">
+                  <Input
+                    value={affiliateLink}
+                    readOnly
+                    className="bg-secondary border-border text-sm"
+                  />
+                  <Button
+                    onClick={handleCopyLink}
+                    variant="outline"
+                    className="border-border shrink-0 hover:bg-secondary transition-all active:scale-[0.98]"
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </div>
+              ) : (
+                <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+                  <p className="text-sm text-warning">
+                    Você precisa estar logado para gerar um link de afiliado
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
