@@ -23,6 +23,8 @@ import {
 import { toast } from "@/hooks/use-toast";
 import { useCart } from "@/contexts/CartContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNotification } from "@/contexts/NotificationContext";
+import { useData } from "@/contexts/DataContext";
 
 interface Product {
   id: number;
@@ -50,7 +52,9 @@ interface ProductDetailModalProps {
 
 export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailModalProps) {
   const { addItem, items } = useCart();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
+  const { addNotification } = useNotification();
+  const { requestAffiliation } = useData();
 
   if (!product) return null;
 
@@ -92,11 +96,61 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
     });
   };
 
-  const handleRequestAffiliation = () => {
-    toast({
-      title: "Solicitação enviada!",
-      description: "Sua solicitação de afiliação foi enviada para o produtor.",
-    });
+  const handleRequestAffiliation = async () => {
+    if (!user || !product) {
+      toast({
+        title: "Erro",
+        description: "Você precisa estar logado para solicitar afiliação.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      // Request affiliation through DataContext
+      await requestAffiliation(String(product.id));
+
+      // Determine if auto-approval is enabled (mock for now, use product.autoApproval if available)
+      const autoApproval = (product as any).autoApproval ?? true;
+
+      // Create notification for the producer
+      const producerNotification = {
+        user_id: (product as any).owner_id || (product as any).producer_id || 'producer',
+        type: autoApproval ? 'affiliation_approved' as const : 'affiliation_request' as const,
+        title: autoApproval ? 'Novo Afiliado Aprovado' : 'Nova Solicitação de Afiliação',
+        message: `${profile?.name || 'Um usuário'} (${profile?.email || user.email}) ${autoApproval ? 'foi aprovado automaticamente como afiliado' : 'solicitou afiliação'} do produto "${product.name}"`,
+        data: {
+          product_id: String(product.id),
+          product_name: product.name,
+          affiliate_id: user.id,
+          affiliate_name: profile?.name || 'Usuário',
+          affiliate_email: profile?.email || user.email,
+        },
+        read: false,
+      };
+
+      addNotification(producerNotification);
+
+      // Show feedback to the user
+      if (autoApproval) {
+        toast({
+          title: "Afiliação aprovada!",
+          description: `Você foi aprovado automaticamente! Já pode começar a promover "${product.name}"`,
+        });
+      } else {
+        toast({
+          title: "Solicitação enviada!",
+          description: "O produtor será notificado e avaliará sua solicitação em breve.",
+        });
+      }
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao solicitar afiliação. Tente novamente.",
+        variant: "destructive",
+      });
+    }
+
     onClose();
   };
 

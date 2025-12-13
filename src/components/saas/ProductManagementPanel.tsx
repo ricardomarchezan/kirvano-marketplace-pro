@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,8 +26,15 @@ import {
   Trash2,
   Edit,
   Percent,
+  DollarSign,
+  TrendingUp,
+  UserCheck,
+  Check,
+  X,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
+import { useData } from "@/contexts/DataContext";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Product {
   id: number;
@@ -66,6 +73,345 @@ const mockOffers = [
   { id: 2, name: "Plano Anual", type: "Recorrente", price: 1970, status: "active" },
   { id: 3, name: "BLACKFRIDAY30", type: "Cupom", price: -30, status: "active" },
 ];
+
+interface AffiliateData {
+  id: string;
+  user_id: string;
+  status: string;
+  created_at: string;
+  profile?: {
+    name: string;
+    email: string;
+  };
+  sales_count?: number;
+  revenue?: number;
+  commission_paid?: number;
+}
+
+interface AffiliationTabProps {
+  product: Product;
+  autoApproval: boolean;
+  setAutoApproval: (value: boolean) => void;
+  globalCommission: number;
+  setGlobalCommission: (value: number) => void;
+}
+
+function AffiliationTabContent({ product, autoApproval, setAutoApproval, globalCommission, setGlobalCommission }: AffiliationTabProps) {
+  const [affiliates, setAffiliates] = useState<AffiliateData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [metrics, setMetrics] = useState({
+    totalAffiliates: 0,
+    totalSales: 0,
+    totalRevenue: 0,
+    totalCommission: 0,
+  });
+
+  useEffect(() => {
+    const fetchAffiliates = async () => {
+      try {
+        setLoading(true);
+        // Fetch affiliations for this product
+        const { data: affiliations, error } = await supabase
+          .from('affiliations')
+          .select('*')
+          .eq('product_id', String(product.id));
+
+        if (error) throw error;
+
+        // Fetch sales data for these affiliates
+        const { data: sales } = await supabase
+          .from('sales')
+          .select('*')
+          .eq('product_id', String(product.id));
+
+        // Calculate metrics per affiliate
+        const affiliateMap = new Map<string, AffiliateData>();
+        
+        affiliations?.forEach(aff => {
+          const affiliateSales = sales?.filter(s => s.affiliate_id === aff.user_id) || [];
+          const revenue = affiliateSales.reduce((sum, s) => sum + Number(s.amount), 0);
+          const commission = affiliateSales.reduce((sum, s) => sum + Number(s.commission_amount), 0);
+          
+          affiliateMap.set(aff.id, {
+            ...aff,
+            sales_count: affiliateSales.length,
+            revenue,
+            commission_paid: commission,
+          });
+        });
+
+        const affiliatesList = Array.from(affiliateMap.values());
+        setAffiliates(affiliatesList);
+
+        // Calculate totals
+        const activeAffiliates = affiliatesList.filter(a => a.status === 'approved' || a.status === 'active');
+        setMetrics({
+          totalAffiliates: activeAffiliates.length,
+          totalSales: affiliatesList.reduce((sum, a) => sum + (a.sales_count || 0), 0),
+          totalRevenue: affiliatesList.reduce((sum, a) => sum + (a.revenue || 0), 0),
+          totalCommission: affiliatesList.reduce((sum, a) => sum + (a.commission_paid || 0), 0),
+        });
+      } catch (error) {
+        console.error('Error fetching affiliates:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAffiliates();
+  }, [product.id]);
+
+  const pendingAffiliates = affiliates.filter(a => a.status === 'pending');
+  const activeAffiliates = affiliates.filter(a => a.status === 'approved' || a.status === 'active');
+
+  const handleApprove = async (affiliateId: string) => {
+    try {
+      await supabase
+        .from('affiliations')
+        .update({ status: 'approved' })
+        .eq('id', affiliateId);
+      
+      setAffiliates(prev => prev.map(a => 
+        a.id === affiliateId ? { ...a, status: 'approved' } : a
+      ));
+      
+      toast({
+        title: "Afiliado aprovado!",
+        description: "O afiliado foi aprovado com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível aprovar o afiliado.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleReject = async (affiliateId: string) => {
+    try {
+      await supabase
+        .from('affiliations')
+        .update({ status: 'rejected' })
+        .eq('id', affiliateId);
+      
+      setAffiliates(prev => prev.map(a => 
+        a.id === affiliateId ? { ...a, status: 'rejected' } : a
+      ));
+      
+      toast({
+        title: "Afiliado rejeitado",
+        description: "A solicitação foi recusada.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível rejeitar o afiliado.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <h3 className="text-lg font-semibold text-foreground">Configurações de Afiliação</h3>
+      
+      {/* Metrics Cards */}
+      <div className="grid grid-cols-4 gap-4">
+        <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
+          <div className="flex items-center gap-2 mb-2">
+            <UserCheck className="w-4 h-4 text-primary" />
+            <span className="text-xs text-muted-foreground">Afiliados Ativos</span>
+          </div>
+          <p className="text-2xl font-bold text-foreground">{metrics.totalAffiliates}</p>
+        </div>
+        <div className="p-4 rounded-xl bg-success/10 border border-success/20">
+          <div className="flex items-center gap-2 mb-2">
+            <TrendingUp className="w-4 h-4 text-success" />
+            <span className="text-xs text-muted-foreground">Vendas por Afiliados</span>
+          </div>
+          <p className="text-2xl font-bold text-foreground">{metrics.totalSales}</p>
+        </div>
+        <div className="p-4 rounded-xl bg-warning/10 border border-warning/20">
+          <div className="flex items-center gap-2 mb-2">
+            <DollarSign className="w-4 h-4 text-warning" />
+            <span className="text-xs text-muted-foreground">Receita Gerada</span>
+          </div>
+          <p className="text-2xl font-bold text-foreground">R$ {metrics.totalRevenue.toFixed(2)}</p>
+        </div>
+        <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/20">
+          <div className="flex items-center gap-2 mb-2">
+            <Percent className="w-4 h-4 text-destructive" />
+            <span className="text-xs text-muted-foreground">Comissão Paga</span>
+          </div>
+          <p className="text-2xl font-bold text-foreground">R$ {metrics.totalCommission.toFixed(2)}</p>
+        </div>
+      </div>
+
+      {/* Global Commission */}
+      <div className="p-4 rounded-xl bg-secondary/50 border border-border">
+        <Label className="flex items-center gap-2 mb-3">
+          <Percent className="w-4 h-4 text-primary" />
+          Comissão Global do Afiliado
+        </Label>
+        <div className="flex items-center gap-4">
+          <Input
+            type="number"
+            value={globalCommission}
+            onChange={(e) => setGlobalCommission(Number(e.target.value))}
+            className="bg-background border-border w-32"
+            min={0}
+            max={100}
+          />
+          <span className="text-muted-foreground">%</span>
+          <p className="text-sm text-muted-foreground flex-1">
+            Esta comissão será aplicada a todas as vendas feitas por afiliados.
+          </p>
+        </div>
+      </div>
+
+      {/* Approval Mode */}
+      <div className="p-4 rounded-xl bg-secondary/50 border border-border">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <Label className="flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" />
+              Modo de Aprovação de Afiliados
+            </Label>
+            <p className="text-sm text-muted-foreground">
+              {autoApproval
+                ? "Afiliados são aprovados automaticamente ao solicitar afiliação."
+                : "Você precisará aprovar manualmente cada solicitação de afiliação."}
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className={`text-sm ${!autoApproval ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+              Manual
+            </span>
+            <Switch
+              checked={autoApproval}
+              onCheckedChange={setAutoApproval}
+            />
+            <span className={`text-sm ${autoApproval ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+              Automática
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Pending Affiliations */}
+      <div className="pt-4 border-t border-border">
+        <h4 className="font-medium text-foreground mb-3">Solicitações Pendentes</h4>
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p className="text-sm">Carregando...</p>
+          </div>
+        ) : pendingAffiliates.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Nenhuma solicitação pendente</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Afiliado</TableHead>
+                <TableHead className="text-muted-foreground">Data</TableHead>
+                <TableHead className="text-muted-foreground text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {pendingAffiliates.map((affiliate) => (
+                <TableRow key={affiliate.id} className="border-border hover:bg-secondary/50 transition-colors">
+                  <TableCell>
+                    <div>
+                      <p className="font-medium text-foreground">{affiliate.profile?.name || 'Afiliado'}</p>
+                      <p className="text-xs text-muted-foreground">{affiliate.profile?.email || affiliate.user_id}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {new Date(affiliate.created_at).toLocaleDateString('pt-BR')}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-2">
+                      <Button 
+                        size="sm" 
+                        onClick={() => handleApprove(affiliate.id)}
+                        className="h-7 text-xs bg-success hover:bg-success/90"
+                      >
+                        <Check className="w-3 h-3 mr-1" />
+                        Aprovar
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        variant="destructive"
+                        onClick={() => handleReject(affiliate.id)}
+                        className="h-7 text-xs"
+                      >
+                        <X className="w-3 h-3 mr-1" />
+                        Rejeitar
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+
+      {/* Active Affiliates */}
+      <div className="pt-4 border-t border-border">
+        <h4 className="font-medium text-foreground mb-3">Afiliados Ativos</h4>
+        {loading ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <p className="text-sm">Carregando...</p>
+          </div>
+        ) : activeAffiliates.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Nenhum afiliado ativo ainda</p>
+            <p className="text-xs mt-1">Compartilhe seu produto no Marketplace para atrair afiliados</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-border hover:bg-transparent">
+                <TableHead className="text-muted-foreground">Afiliado</TableHead>
+                <TableHead className="text-muted-foreground">Status</TableHead>
+                <TableHead className="text-muted-foreground">Vendas</TableHead>
+                <TableHead className="text-muted-foreground">Receita</TableHead>
+                <TableHead className="text-muted-foreground">Comissão</TableHead>
+                <TableHead className="text-muted-foreground">Data</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {activeAffiliates.map((affiliate) => (
+                <TableRow key={affiliate.id} className="border-border hover:bg-secondary/50 transition-colors">
+                  <TableCell>
+                    <div>
+                      <p className="font-medium text-foreground">{affiliate.profile?.name || 'Afiliado'}</p>
+                      <p className="text-xs text-muted-foreground">{affiliate.profile?.email || affiliate.user_id}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge className="bg-success/10 text-success border-0">Ativo</Badge>
+                  </TableCell>
+                  <TableCell className="text-foreground">{affiliate.sales_count || 0}</TableCell>
+                  <TableCell className="text-foreground">R$ {(affiliate.revenue || 0).toFixed(2)}</TableCell>
+                  <TableCell className="text-warning">R$ {(affiliate.commission_paid || 0).toFixed(2)}</TableCell>
+                  <TableCell className="text-muted-foreground text-sm">
+                    {new Date(affiliate.created_at).toLocaleDateString('pt-BR')}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function ProductManagementPanel({ product, onBack }: ProductManagementPanelProps) {
   const [activeTab, setActiveTab] = useState("settings");
@@ -324,69 +670,13 @@ export function ProductManagementPanel({ product, onBack }: ProductManagementPan
 
           {/* Affiliation Tab */}
           {activeTab === "affiliation" && (
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold text-foreground">Configurações de Afiliação</h3>
-              
-              {/* Global Commission */}
-              <div className="p-4 rounded-xl bg-secondary/50 border border-border">
-                <Label className="flex items-center gap-2 mb-3">
-                  <Percent className="w-4 h-4 text-primary" />
-                  Comissão Global do Afiliado
-                </Label>
-                <div className="flex items-center gap-4">
-                  <Input
-                    type="number"
-                    value={globalCommission}
-                    onChange={(e) => setGlobalCommission(Number(e.target.value))}
-                    className="bg-background border-border w-32"
-                    min={0}
-                    max={100}
-                  />
-                  <span className="text-muted-foreground">%</span>
-                  <p className="text-sm text-muted-foreground flex-1">
-                    Esta comissão será aplicada a todas as vendas feitas por afiliados.
-                  </p>
-                </div>
-              </div>
-
-              {/* Approval Mode */}
-              <div className="p-4 rounded-xl bg-secondary/50 border border-border">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <Label className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-primary" />
-                      Modo de Aprovação de Afiliados
-                    </Label>
-                    <p className="text-sm text-muted-foreground">
-                      {autoApproval
-                        ? "Afiliados são aprovados automaticamente ao solicitar afiliação."
-                        : "Você precisará aprovar manualmente cada solicitação de afiliação."}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`text-sm ${!autoApproval ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                      Manual
-                    </span>
-                    <Switch
-                      checked={autoApproval}
-                      onCheckedChange={setAutoApproval}
-                    />
-                    <span className={`text-sm ${autoApproval ? "text-foreground font-medium" : "text-muted-foreground"}`}>
-                      Automática
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Pending Affiliations */}
-              <div className="pt-4 border-t border-border">
-                <h4 className="font-medium text-foreground mb-3">Solicitações Pendentes</h4>
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Nenhuma solicitação pendente</p>
-                </div>
-              </div>
-            </div>
+            <AffiliationTabContent 
+              product={product} 
+              autoApproval={autoApproval}
+              setAutoApproval={setAutoApproval}
+              globalCommission={globalCommission}
+              setGlobalCommission={setGlobalCommission}
+            />
           )}
 
           {/* Integrations Tab */}
