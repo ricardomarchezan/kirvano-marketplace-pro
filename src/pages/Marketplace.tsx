@@ -49,7 +49,7 @@ const Marketplace = () => {
 
   const handleQuickAddToCart = (e: React.MouseEvent, product: Product) => {
     e.stopPropagation();
-    const isInCart = items.some((item) => String(item.id) === product.id);
+    const isInCart = items.some((item) => item.id === product.id);
     if (isInCart) {
       toast({
         title: "Já está no carrinho",
@@ -58,7 +58,7 @@ const Marketplace = () => {
       return;
     }
     addItem({
-      id: Number(product.id) || product.id as any,
+      id: product.id,
       name: product.name,
       producer: "Produtor",
       price: Number(product.price),
@@ -81,7 +81,7 @@ const Marketplace = () => {
     }
   };
 
-  const isProductInCart = (productId: string) => items.some((item) => String(item.id) === productId);
+  const isProductInCart = (productId: string) => items.some((item) => item.id === productId);
   const isAffiliated = (productId: string) => affiliations.some((a) => a.product_id === productId);
 
   const generateAffiliateLink = (productId: string) => {
@@ -317,7 +317,8 @@ const Marketplace = () => {
         {/* Product Detail Modal */}
         <ProductDetailModal
           product={selectedProduct ? {
-            id: Number(selectedProduct.id) || 0,
+            id: selectedProduct.id,
+            owner_id: selectedProduct.owner_id,
             name: selectedProduct.name,
             producer: "Produtor",
             price: Number(selectedProduct.price),
@@ -330,6 +331,7 @@ const Marketplace = () => {
             description: selectedProduct.description || "",
             benefits: [],
             rules: `Comissão de ${selectedProduct.commission}% por venda.`,
+            auto_approve_affiliates: selectedProduct.auto_approve_affiliates,
           } : null}
           isOpen={isModalOpen}
           onClose={() => setIsModalOpen(false)}
