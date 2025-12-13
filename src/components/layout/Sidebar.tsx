@@ -1,4 +1,4 @@
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, Link } from "react-router-dom";
 import {
   LayoutDashboard,
   TrendingUp,
@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
 
 const menuItems = [
   { icon: LayoutDashboard, label: "Dashboard", path: "/" },
@@ -28,6 +29,15 @@ const menuItems = [
 export function Sidebar() {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const location = useLocation();
+  const { user, profile } = useAuth();
+
+  // Generate user initials from name
+  const getUserInitials = () => {
+    if (profile?.name) {
+      return profile.name.split(' ').map(n => n[0]).slice(0, 2).join('').toUpperCase();
+    }
+    return 'U';
+  };
 
   return (
     <aside
@@ -90,17 +100,27 @@ export function Sidebar() {
 
         {/* User section */}
         <div className="p-4 border-t border-sidebar-border">
-          <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
+          <Link 
+            to="/perfil"
+            className={cn(
+              "flex items-center gap-3 p-2 -m-2 rounded-lg hover:bg-sidebar-accent transition-colors cursor-pointer",
+              isCollapsed && "justify-center"
+            )}
+          >
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-[hsl(250,91%,65%)] flex items-center justify-center">
-              <span className="text-primary-foreground font-semibold">JD</span>
+              <span className="text-primary-foreground font-semibold">{getUserInitials()}</span>
             </div>
             {!isCollapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">João Silva</p>
-                <p className="text-xs text-muted-foreground truncate">joao@empresa.com</p>
+                <p className="text-sm font-medium text-foreground truncate">
+                  {profile?.name || 'Usuário'}
+                </p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {profile?.email || user?.email || 'email@exemplo.com'}
+                </p>
               </div>
             )}
-          </div>
+          </Link>
         </div>
       </div>
     </aside>
