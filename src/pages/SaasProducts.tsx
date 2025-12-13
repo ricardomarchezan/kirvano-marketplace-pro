@@ -31,99 +31,71 @@ import {
   Upload,
   AlertCircle,
   Image,
-  Video
+  Video,
+  Loader2
 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "@/hooks/use-toast";
 import { ProductManagementPanel } from "@/components/saas/ProductManagementPanel";
+import { useData, Product } from "@/contexts/DataContext";
 
 type BusinessModel = "recurring" | "whitelabel" | "";
 
-interface Product {
-  id: number;
-  name: string;
-  description: string;
-  price: number;
-  commission: number;
-  activeClients: number;
-  churn: number;
-  mrr: number;
-  status: string;
-  model: "recurring" | "whitelabel";
-  totalSales?: number;
-  totalRevenue?: number;
-  images?: string[];
-  videoUrl?: string;
-  supportEmail?: string;
-  supportUrl?: string;
-  autoApproval?: boolean;
-}
-
-const myProducts: Product[] = [
-  {
-    id: 1,
-    name: "MeuSaaS Pro",
-    description: "Plataforma completa de gestão",
-    price: 197,
-    commission: 30,
-    activeClients: 156,
-    churn: 2.3,
-    mrr: 30732,
-    status: "active",
-    model: "recurring",
-    images: [
-      "https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=400",
-      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400",
-    ],
-    autoApproval: true,
-  },
-  {
-    id: 2,
-    name: "AutomationHub",
-    description: "Automação de marketing inteligente",
-    price: 97,
-    commission: 35,
-    activeClients: 89,
-    churn: 3.1,
-    mrr: 8633,
-    status: "active",
-    model: "recurring",
-    images: [
-      "https://images.unsplash.com/photo-1553877522-43269d4ea984?w=400",
-    ],
-    autoApproval: false,
-  },
-  {
-    id: 3,
-    name: "Template Dashboard Pro",
-    description: "Template completo de dashboard SaaS",
-    price: 497,
-    commission: 25,
-    activeClients: 0,
-    churn: 0,
-    mrr: 0,
-    status: "active",
-    model: "whitelabel",
-    totalSales: 45,
-    totalRevenue: 22365,
-    images: [
-      "https://images.unsplash.com/photo-1551288049-bebda4e38f71?w=400",
-    ],
-    autoApproval: true,
-  },
-];
-
 const SaasProducts = () => {
+  const { products, sales, loading, addProduct } = useData();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [businessModel, setBusinessModel] = useState<BusinessModel>("");
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = () => {
+  // Form state
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    images: "",
+    videoUrl: "",
+    price: "",
+    commission: "",
+    webhookUrl: "",
+    apiKey: "",
+    githubUrl: "",
+  });
+
+  const handleInputChange = (field: string, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+      images: "",
+      videoUrl: "",
+      price: "",
+      commission: "",
+      webhookUrl: "",
+      apiKey: "",
+      githubUrl: "",
+    });
+    setBusinessModel("");
+    setAcceptTerms(false);
+  };
+
+  const handleSubmit = async () => {
     if (!businessModel) {
       toast({
         title: "Selecione o modelo",
         description: "Por favor, escolha o modelo de negócio do seu SaaS.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.name.trim()) {
+      toast({
+        title: "Nome obrigatório",
+        description: "Por favor, informe o nome do produto.",
         variant: "destructive",
       });
       return;
@@ -138,13 +110,45 @@ const SaasProducts = () => {
       return;
     }
 
-    toast({
-      title: "SaaS cadastrado!",
-      description: "Seu produto foi cadastrado com sucesso.",
-    });
-    setIsDialogOpen(false);
-    setBusinessModel("");
-    setAcceptTerms(false);
+    setIsSubmitting(true);
+    try {
+      await addProduct({
+        name: formData.name,
+        description: formData.description || null,
+        price: parseFloat(formData.price) || 0,
+        commission: parseFloat(formData.commission) || 0,
+        model: businessModel as "recurring" | "whitelabel",
+        status: "active",
+        image_url: formData.images.split(",")[0]?.trim() || null,
+        video_url: formData.videoUrl || null,
+        webhook_url: formData.webhookUrl || null,
+        github_url: formData.githubUrl || null,
+        auto_approve_affiliates: false,
+      });
+
+      setIsDialogOpen(false);
+      resetForm();
+    } catch (error) {
+      // Error already handled in context
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Calculate product metrics
+  const getProductMetrics = (product: Product) => {
+    const productSales = sales.filter(s => s.product_id === product.id);
+    const completedSales = productSales.filter(s => s.status === "completed");
+    const mrr = product.model === "recurring" 
+      ? completedSales.reduce((sum, s) => sum + Number(s.amount), 0)
+      : 0;
+    const totalRevenue = completedSales.reduce((sum, s) => sum + Number(s.amount), 0);
+    const activeClients = new Set(completedSales.map(s => s.customer_email)).size;
+    const churn = productSales.length > 0
+      ? (productSales.filter(s => s.status === "refunded" || s.status === "chargeback").length / productSales.length) * 100
+      : 0;
+
+    return { mrr, totalRevenue, activeClients, churn, totalSales: completedSales.length };
   };
 
   // If a product is selected, show the management panel
@@ -152,7 +156,7 @@ const SaasProducts = () => {
     return (
       <DashboardLayout>
         <ProductManagementPanel
-          product={selectedProduct}
+          product={selectedProduct as any}
           onBack={() => setSelectedProduct(null)}
         />
       </DashboardLayout>
@@ -172,10 +176,7 @@ const SaasProducts = () => {
           </div>
           <Dialog open={isDialogOpen} onOpenChange={(open) => {
             setIsDialogOpen(open);
-            if (!open) {
-              setBusinessModel("");
-              setAcceptTerms(false);
-            }
+            if (!open) resetForm();
           }}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90 transition-colors">
@@ -225,7 +226,13 @@ const SaasProducts = () => {
                 {/* Common Fields */}
                 <div className="space-y-2">
                   <Label htmlFor="name">Nome do Produto *</Label>
-                  <Input id="name" placeholder="Ex: MeuSaaS Pro" className="bg-secondary border-border" />
+                  <Input 
+                    id="name" 
+                    placeholder="Ex: MeuSaaS Pro" 
+                    className="bg-secondary border-border"
+                    value={formData.name}
+                    onChange={(e) => handleInputChange("name", e.target.value)}
+                  />
                 </div>
                 
                 <div className="space-y-2">
@@ -235,6 +242,8 @@ const SaasProducts = () => {
                     placeholder="Descreva seu produto de forma atrativa para afiliados..."
                     className="bg-secondary border-border resize-none"
                     rows={3}
+                    value={formData.description}
+                    onChange={(e) => handleInputChange("description", e.target.value)}
                   />
                 </div>
 
@@ -255,6 +264,8 @@ const SaasProducts = () => {
                       placeholder="https://exemplo.com/imagem1.jpg, https://exemplo.com/imagem2.jpg"
                       className="bg-background border-border resize-none"
                       rows={2}
+                      value={formData.images}
+                      onChange={(e) => handleInputChange("images", e.target.value)}
                     />
                   </div>
 
@@ -267,6 +278,8 @@ const SaasProducts = () => {
                       id="videoUrl"
                       placeholder="https://youtube.com/watch?v=... ou https://vimeo.com/..."
                       className="bg-background border-border"
+                      value={formData.videoUrl}
+                      onChange={(e) => handleInputChange("videoUrl", e.target.value)}
                     />
                   </div>
                 </div>
@@ -281,6 +294,8 @@ const SaasProducts = () => {
                       type="number"
                       placeholder={businessModel === "whitelabel" ? "497" : "197"}
                       className="bg-secondary border-border"
+                      value={formData.price}
+                      onChange={(e) => handleInputChange("price", e.target.value)}
                     />
                   </div>
                   <div className="space-y-2">
@@ -290,6 +305,8 @@ const SaasProducts = () => {
                       type="number"
                       placeholder="30"
                       className="bg-secondary border-border"
+                      value={formData.commission}
+                      onChange={(e) => handleInputChange("commission", e.target.value)}
                     />
                   </div>
                 </div>
@@ -311,6 +328,8 @@ const SaasProducts = () => {
                         id="webhook"
                         placeholder="https://seusite.com/api/activate"
                         className="bg-secondary border-border"
+                        value={formData.webhookUrl}
+                        onChange={(e) => handleInputChange("webhookUrl", e.target.value)}
                       />
                       <p className="text-xs text-muted-foreground">
                         Endpoint que será chamado quando um cliente ativar a assinatura.
@@ -327,6 +346,8 @@ const SaasProducts = () => {
                         type="password"
                         placeholder="sk_live_..."
                         className="bg-secondary border-border"
+                        value={formData.apiKey}
+                        onChange={(e) => handleInputChange("apiKey", e.target.value)}
                       />
                       <p className="text-xs text-muted-foreground">
                         Chave para autenticação segura entre nossa plataforma e seu sistema.
@@ -352,6 +373,8 @@ const SaasProducts = () => {
                         id="download"
                         placeholder="https://github.com/user/repo ou faça upload..."
                         className="bg-secondary border-border"
+                        value={formData.githubUrl}
+                        onChange={(e) => handleInputChange("githubUrl", e.target.value)}
                       />
                       <p className="text-xs text-muted-foreground">
                         Link para download do código-fonte após a compra.
@@ -395,124 +418,147 @@ const SaasProducts = () => {
                 <Button 
                   onClick={handleSubmit}
                   className="w-full bg-primary hover:bg-primary/90 mt-4 transition-colors"
-                  disabled={!businessModel || (businessModel === "whitelabel" && !acceptTerms)}
+                  disabled={!businessModel || (businessModel === "whitelabel" && !acceptTerms) || isSubmitting}
                 >
-                  Cadastrar Produto
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Cadastrando...
+                    </>
+                  ) : (
+                    "Cadastrar Produto"
+                  )}
                 </Button>
               </div>
             </DialogContent>
           </Dialog>
         </div>
 
-        {/* Products Grid - Enhanced with click to manage */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {myProducts.map((product) => (
-            <div
-              key={product.id}
-              onClick={() => setSelectedProduct(product)}
-              className="glass-card p-6 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                    product.model === "recurring" 
-                      ? "bg-gradient-to-br from-primary/20 to-primary/5" 
-                      : "bg-gradient-to-br from-warning/20 to-warning/5"
-                  }`}>
+        {/* Loading State */}
+        {loading ? (
+          <div className="glass-card p-12 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
+          </div>
+        ) : products.length === 0 ? (
+          /* Empty State */
+          <div className="glass-card p-12 text-center">
+            <Package className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-xl font-medium text-foreground mb-2">Nenhum SaaS cadastrado</h3>
+            <p className="text-muted-foreground mb-6">
+              Comece cadastrando seu primeiro produto SaaS
+            </p>
+            <Button onClick={() => setIsDialogOpen(true)} className="bg-primary hover:bg-primary/90">
+              <Plus className="w-4 h-4 mr-2" />
+              Cadastrar Meu Primeiro SaaS
+            </Button>
+          </div>
+        ) : (
+          /* Products Grid */
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {products.map((product) => {
+              const metrics = getProductMetrics(product);
+              return (
+                <div
+                  key={product.id}
+                  onClick={() => setSelectedProduct(product)}
+                  className="glass-card p-6 cursor-pointer hover:ring-2 hover:ring-primary/50 transition-all"
+                >
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                        product.model === "recurring" 
+                          ? "bg-gradient-to-br from-primary/20 to-primary/5" 
+                          : "bg-gradient-to-br from-warning/20 to-warning/5"
+                      }`}>
+                        {product.model === "recurring" ? (
+                          <RefreshCw className="w-6 h-6 text-primary" />
+                        ) : (
+                          <FileCode className="w-6 h-6 text-warning" />
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold text-foreground">{product.name}</h3>
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
+                            product.model === "recurring"
+                              ? "bg-primary/10 text-primary"
+                              : "bg-warning/10 text-warning"
+                          }`}>
+                            {product.model === "recurring" ? "Recorrência" : "White Label"}
+                          </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground">{product.description}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
                     {product.model === "recurring" ? (
-                      <RefreshCw className="w-6 h-6 text-primary" />
+                      <>
+                        <div className="p-3 rounded-lg bg-secondary/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Users className="w-4 h-4 text-primary" />
+                            <span className="text-xs text-muted-foreground">Clientes Ativos</span>
+                          </div>
+                          <p className="text-lg font-semibold text-foreground">{metrics.activeClients}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-secondary/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <TrendingDown className="w-4 h-4 text-destructive" />
+                            <span className="text-xs text-muted-foreground">Churn</span>
+                          </div>
+                          <p className="text-lg font-semibold text-foreground">{metrics.churn.toFixed(1)}%</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-secondary/50 col-span-2">
+                          <div className="flex items-center gap-2 mb-1">
+                            <DollarSign className="w-4 h-4 text-success" />
+                            <span className="text-xs text-muted-foreground">MRR</span>
+                          </div>
+                          <p className="text-xl font-bold text-success">
+                            R$ {metrics.mrr.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </>
                     ) : (
-                      <FileCode className="w-6 h-6 text-warning" />
+                      <>
+                        <div className="p-3 rounded-lg bg-secondary/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <Package className="w-4 h-4 text-warning" />
+                            <span className="text-xs text-muted-foreground">Total Vendas</span>
+                          </div>
+                          <p className="text-lg font-semibold text-foreground">{metrics.totalSales}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-secondary/50">
+                          <div className="flex items-center gap-2 mb-1">
+                            <DollarSign className="w-4 h-4 text-success" />
+                            <span className="text-xs text-muted-foreground">Receita Total</span>
+                          </div>
+                          <p className="text-lg font-semibold text-success">
+                            R$ {metrics.totalRevenue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </>
                     )}
                   </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold text-foreground">{product.name}</h3>
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                        product.model === "recurring"
-                          ? "bg-primary/10 text-primary"
-                          : "bg-warning/10 text-warning"
-                      }`}>
-                        {product.model === "recurring" ? "Recorrência" : "White Label"}
-                      </span>
-                    </div>
-                    <p className="text-sm text-muted-foreground">{product.description}</p>
-                  </div>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                {product.model === "recurring" ? (
-                  <>
-                    <div className="p-3 rounded-lg bg-secondary/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Users className="w-4 h-4 text-primary" />
-                        <span className="text-xs text-muted-foreground">Clientes Ativos</span>
-                      </div>
-                      <p className="text-xl font-bold text-foreground">{product.activeClients}</p>
+                  <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                      <span>R$ {Number(product.price).toFixed(2)}{product.model === "recurring" ? "/mês" : ""}</span>
+                      <span>{product.commission}% comissão</span>
                     </div>
-                    <div className="p-3 rounded-lg bg-secondary/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <TrendingDown className="w-4 h-4 text-warning" />
-                        <span className="text-xs text-muted-foreground">Churn Rate</span>
-                      </div>
-                      <p className="text-xl font-bold text-foreground">{product.churn}%</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-secondary/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <DollarSign className="w-4 h-4 text-success" />
-                        <span className="text-xs text-muted-foreground">MRR</span>
-                      </div>
-                      <p className="text-xl font-bold text-foreground">
-                        R$ {product.mrr.toLocaleString("pt-BR")}
-                      </p>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="p-3 rounded-lg bg-secondary/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Package className="w-4 h-4 text-warning" />
-                        <span className="text-xs text-muted-foreground">Vendas Totais</span>
-                      </div>
-                      <p className="text-xl font-bold text-foreground">{product.totalSales || 0}</p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-secondary/50">
-                      <div className="flex items-center gap-2 mb-1">
-                        <DollarSign className="w-4 h-4 text-success" />
-                        <span className="text-xs text-muted-foreground">Receita Total</span>
-                      </div>
-                      <p className="text-xl font-bold text-foreground">
-                        R$ {(product.totalRevenue || 0).toLocaleString("pt-BR")}
-                      </p>
-                    </div>
-                  </>
-                )}
-                <div className="p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-muted-foreground">Comissão</span>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                      product.status === "active"
+                        ? "bg-success/10 text-success"
+                        : "bg-muted text-muted-foreground"
+                    }`}>
+                      {product.status === "active" ? "Ativo" : "Pausado"}
+                    </span>
                   </div>
-                  <p className="text-xl font-bold text-primary">{product.commission}%</p>
                 </div>
-                <div className="p-3 rounded-lg bg-secondary/50">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xs text-muted-foreground">Preço</span>
-                  </div>
-                  <p className="text-xl font-bold text-foreground">
-                    R$ {product.price}
-                    {product.model === "recurring" && <span className="text-xs font-normal">/mês</span>}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4 pt-4 border-t border-border">
-                <p className="text-xs text-muted-foreground text-center">
-                  Clique para gerenciar produto
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
