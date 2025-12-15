@@ -78,7 +78,7 @@ interface DataContextType {
   addProduct: (data: Omit<Product, "id" | "owner_id" | "created_at" | "updated_at">) => Promise<void>;
   updateProduct: (id: string, data: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
-  requestAffiliation: (productId: string) => Promise<void>;
+  requestAffiliation: (productId: string) => Promise<{ affiliationId: string; status: string } | null>;
   refreshData: () => Promise<void>;
 }
 
@@ -360,8 +360,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     return `${userPart}-${productPart}-${timestamp}`;
   };
 
-  const requestAffiliation = async (productId: string) => {
-    if (!user) return;
+  const requestAffiliation = async (productId: string): Promise<{ affiliationId: string; status: string } | null> => {
+    if (!user) return null;
 
     try {
       // Check if already affiliated
@@ -371,7 +371,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           title: "Já afiliado",
           description: "Você já solicitou afiliação para este produto.",
         });
-        return;
+        return null;
       }
 
       const referralCode = generateReferralCode(user.id, productId);
@@ -380,14 +380,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const product = allProducts.find(p => p.id === productId);
       const status = product?.auto_approve_affiliates ? "approved" : "pending";
 
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("affiliations")
         .insert({
           user_id: user.id,
           product_id: productId,
           referral_code: referralCode,
           status,
-        });
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
 
@@ -399,6 +401,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       });
 
       await fetchData();
+      
+      return { affiliationId: data.id, status };
     } catch (error: any) {
       console.error("Error requesting affiliation:", error);
       toast({

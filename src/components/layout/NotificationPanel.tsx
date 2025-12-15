@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { toast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const notificationIcons: Record<string, typeof Bell> = {
   affiliation_request: UserPlus,
@@ -24,53 +25,92 @@ export function NotificationPanel() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, addNotification } = useNotification();
   const { refreshData } = useData();
 
-  const handleApproveAffiliation = (notification: Notification) => {
-    // Create approval notification for the affiliate
-    if (notification.data?.affiliate_id) {
-      addNotification({
-        user_id: notification.data.affiliate_id,
-        type: 'affiliation_approved',
-        title: 'Afiliação Aprovada!',
-        message: `Sua solicitação de afiliação ao produto "${notification.data.product_name}" foi aprovada! Você já pode começar a promover.`,
-        data: {
-          product_id: notification.data.product_id,
-          product_name: notification.data.product_name,
-        },
-        read: false,
+  const handleApproveAffiliation = async (notification: Notification) => {
+    try {
+      // Update affiliation status in database
+      if (notification.data?.affiliation_id) {
+        const { error } = await supabase
+          .from('affiliations')
+          .update({ status: 'approved' })
+          .eq('id', notification.data.affiliation_id);
+        
+        if (error) throw error;
+      }
+
+      // Create approval notification for the affiliate
+      if (notification.data?.affiliate_id) {
+        addNotification({
+          user_id: notification.data.affiliate_id,
+          type: 'affiliation_approved',
+          title: 'Afiliação Aprovada!',
+          message: `Sua solicitação de afiliação ao produto "${notification.data.product_name}" foi aprovada! Você já pode começar a promover.`,
+          data: {
+            product_id: notification.data.product_id,
+            product_name: notification.data.product_name,
+          },
+          read: false,
+        });
+      }
+
+      markAsRead(notification.id);
+      await refreshData();
+
+      toast({
+        title: "Afiliado aprovado!",
+        description: `${notification.data?.affiliate_name} foi aprovado como afiliado.`,
+      });
+    } catch (error) {
+      console.error('Error approving affiliation:', error);
+      toast({
+        title: "Erro ao aprovar",
+        description: "Não foi possível aprovar a afiliação. Tente novamente.",
+        variant: "destructive",
       });
     }
-
-    markAsRead(notification.id);
-    refreshData();
-
-    toast({
-      title: "Afiliado aprovado!",
-      description: `${notification.data?.affiliate_name} foi aprovado como afiliado.`,
-    });
   };
 
-  const handleRejectAffiliation = (notification: Notification) => {
-    // Create rejection notification for the affiliate
-    if (notification.data?.affiliate_id) {
-      addNotification({
-        user_id: notification.data.affiliate_id,
-        type: 'affiliation_rejected',
-        title: 'Afiliação Recusada',
-        message: `Sua solicitação de afiliação ao produto "${notification.data.product_name}" foi recusada pelo produtor.`,
-        data: {
-          product_id: notification.data.product_id,
-          product_name: notification.data.product_name,
-        },
-        read: false,
+  const handleRejectAffiliation = async (notification: Notification) => {
+    try {
+      // Update affiliation status in database
+      if (notification.data?.affiliation_id) {
+        const { error } = await supabase
+          .from('affiliations')
+          .update({ status: 'rejected' })
+          .eq('id', notification.data.affiliation_id);
+        
+        if (error) throw error;
+      }
+
+      // Create rejection notification for the affiliate
+      if (notification.data?.affiliate_id) {
+        addNotification({
+          user_id: notification.data.affiliate_id,
+          type: 'affiliation_rejected',
+          title: 'Afiliação Recusada',
+          message: `Sua solicitação de afiliação ao produto "${notification.data.product_name}" foi recusada pelo produtor.`,
+          data: {
+            product_id: notification.data.product_id,
+            product_name: notification.data.product_name,
+          },
+          read: false,
+        });
+      }
+
+      markAsRead(notification.id);
+      await refreshData();
+
+      toast({
+        title: "Afiliado recusado",
+        description: `A solicitação de ${notification.data?.affiliate_name} foi recusada.`,
+      });
+    } catch (error) {
+      console.error('Error rejecting affiliation:', error);
+      toast({
+        title: "Erro ao rejeitar",
+        description: "Não foi possível rejeitar a afiliação. Tente novamente.",
+        variant: "destructive",
       });
     }
-
-    markAsRead(notification.id);
-
-    toast({
-      title: "Afiliado recusado",
-      description: `A solicitação de ${notification.data?.affiliate_name} foi recusada.`,
-    });
   };
 
   return (

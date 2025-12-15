@@ -110,10 +110,15 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
 
     try {
       // Request affiliation through DataContext with proper UUID
-      await requestAffiliation(product.id);
+      const result = await requestAffiliation(product.id);
+      
+      if (!result) {
+        // Already affiliated or error handled in DataContext
+        return;
+      }
 
       // Determine if auto-approval is enabled
-      const autoApproval = product.auto_approve_affiliates ?? true;
+      const autoApproval = result.status === 'approved';
 
       // Create notification for the producer
       const producerNotification = {
@@ -122,6 +127,7 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
         title: autoApproval ? 'Novo Afiliado Aprovado' : 'Nova Solicitação de Afiliação',
         message: `${profile?.name || 'Um usuário'} (${profile?.email || user.email}) ${autoApproval ? 'foi aprovado automaticamente como afiliado' : 'solicitou afiliação'} do produto "${product.name}"`,
         data: {
+          affiliation_id: result.affiliationId,
           product_id: product.id,
           product_name: product.name,
           affiliate_id: user.id,
@@ -133,27 +139,10 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
 
       addNotification(producerNotification);
 
-      // Show feedback to the user
-      if (autoApproval) {
-        toast({
-          title: "Afiliação aprovada!",
-          description: `Você foi aprovado automaticamente! Já pode começar a promover "${product.name}"`,
-        });
-      } else {
-        toast({
-          title: "Solicitação enviada!",
-          description: "O produtor será notificado e avaliará sua solicitação em breve.",
-        });
-      }
+      onClose();
     } catch (error) {
-      toast({
-        title: "Erro",
-        description: "Ocorreu um erro ao solicitar afiliação. Tente novamente.",
-        variant: "destructive",
-      });
+      // Error already handled in DataContext
     }
-
-    onClose();
   };
 
   return (
