@@ -79,6 +79,7 @@ interface DataContextType {
   updateProduct: (id: string, data: Partial<Product>) => Promise<void>;
   deleteProduct: (id: string) => Promise<void>;
   requestAffiliation: (productId: string) => Promise<{ affiliationId: string; status: string } | null>;
+  getAffiliationStatus: (productId: string) => "pending" | "approved" | "rejected" | null;
   refreshData: () => Promise<void>;
 }
 
@@ -414,6 +415,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const getAffiliationStatus = (productId: string): "pending" | "approved" | "rejected" | null => {
+    const affiliation = affiliations.find(a => a.product_id === productId);
+    if (!affiliation) return null;
+    return affiliation.status as "pending" | "approved" | "rejected";
+  };
+
   return (
     <DataContext.Provider
       value={{
@@ -428,6 +435,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         updateProduct,
         deleteProduct,
         requestAffiliation,
+        getAffiliationStatus,
         refreshData: fetchData,
       }}
     >

@@ -30,7 +30,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const storageKey = user ? `notifications_${user.id}` : null;
 
   // Load notifications from localStorage
-  useEffect(() => {
+  const loadNotifications = useCallback(() => {
     if (storageKey) {
       const stored = localStorage.getItem(storageKey);
       if (stored) {
@@ -46,6 +46,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       setNotifications([]);
     }
   }, [storageKey]);
+
+  // Initial load
+  useEffect(() => {
+    loadNotifications();
+  }, [loadNotifications]);
+
+  // Poll for new notifications every 3 seconds
+  useEffect(() => {
+    if (!storageKey) return;
+    
+    const interval = setInterval(() => {
+      loadNotifications();
+    }, 3000);
+    
+    return () => clearInterval(interval);
+  }, [storageKey, loadNotifications]);
 
   // Save notifications to localStorage
   useEffect(() => {
