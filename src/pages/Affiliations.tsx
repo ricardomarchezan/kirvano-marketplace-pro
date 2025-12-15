@@ -268,6 +268,42 @@ const Affiliations = () => {
             </div>
           </div>
         )}
+
+        {/* Rejected Affiliations */}
+        {affiliations.filter(a => a.status === 'rejected').length > 0 && (
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-foreground">Afiliações Recusadas</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {affiliations
+                .filter(a => a.status === 'rejected')
+                .map(affiliation => {
+                  const product = allProducts.find(p => p.id === affiliation.product_id);
+                  return (
+                    <Card key={affiliation.id} className="bg-card border-border opacity-75">
+                      <CardHeader className="pb-3">
+                        <div className="flex items-start justify-between">
+                          <CardTitle className="text-base font-semibold text-foreground">
+                            {product?.name || 'Produto'}
+                          </CardTitle>
+                          <Badge variant="outline" className="border-destructive text-destructive">
+                            Recusada
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Solicitado em {new Date(affiliation.created_at).toLocaleDateString('pt-BR')}
+                        </p>
+                      </CardHeader>
+                      <CardContent>
+                        <p className="text-sm text-muted-foreground">
+                          O produtor recusou sua solicitação de afiliação
+                        </p>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+            </div>
+          </div>
+        )}
       </div>
     </DashboardLayout>
   );
