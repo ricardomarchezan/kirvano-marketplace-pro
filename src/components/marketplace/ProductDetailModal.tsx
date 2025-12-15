@@ -56,11 +56,12 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
   const { addItem, items } = useCart();
   const { user, profile } = useAuth();
   const { addNotification } = useNotification();
-  const { requestAffiliation } = useData();
+  const { requestAffiliation, getAffiliationStatus, refreshData } = useData();
 
   if (!product) return null;
 
   const isInCart = items.some((item) => item.id === product.id);
+  const affiliationStatus = getAffiliationStatus(product.id);
   
   // Generate affiliate link with real user ID
   const affiliateLink = user 
@@ -138,6 +139,7 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
       };
 
       addNotification(producerNotification);
+      await refreshData();
 
       onClose();
     } catch (error) {
@@ -321,26 +323,69 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
                     </>
                   )}
                 </Button>
-                <Button
-                  onClick={handleRequestAffiliation}
-                  variant="outline"
-                  className="w-full border-border hover:bg-secondary transition-all active:scale-[0.98]"
-                  size="lg"
-                >
-                  <UserPlus className="w-5 h-5 mr-2" />
-                  Solicitar Afiliação
-                </Button>
+                {affiliationStatus !== "approved" && (
+                  <Button
+                    onClick={handleRequestAffiliation}
+                    variant="outline"
+                    disabled={affiliationStatus === "pending"}
+                    className="w-full border-border hover:bg-secondary transition-all active:scale-[0.98]"
+                    size="lg"
+                  >
+                    {affiliationStatus === "pending" ? (
+                      <>
+                        <Clock className="w-5 h-5 mr-2" />
+                        Aguardando Aprovação
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-5 h-5 mr-2" />
+                        {affiliationStatus === "rejected" ? "Solicitar Novamente" : "Solicitar Afiliação"}
+                      </>
+                    )}
+                  </Button>
+                )}
+                {affiliationStatus === "approved" && (
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-success/10 border border-success/20">
+                    <Check className="w-5 h-5 text-success flex-shrink-0" />
+                    <p className="text-sm text-success font-medium">
+                      Você é afiliado deste produto
+                    </p>
+                  </div>
+                )}
               </>
             ) : (
               <>
-                <Button
-                  onClick={handleRequestAffiliation}
-                  className="w-full bg-primary hover:bg-primary/90 transition-all active:scale-[0.98]"
-                  size="lg"
-                >
-                  <UserPlus className="w-5 h-5 mr-2" />
-                  Solicitar Afiliação
-                </Button>
+                {affiliationStatus === "approved" ? (
+                  <div className="flex items-center gap-2 p-4 rounded-lg bg-success/10 border border-success/20">
+                    <Check className="w-5 h-5 text-success flex-shrink-0" />
+                    <div>
+                      <p className="text-sm text-success font-medium">
+                        Você é afiliado deste produto!
+                      </p>
+                      <p className="text-xs text-success/80 mt-0.5">
+                        Copie seu link abaixo para começar a promover
+                      </p>
+                    </div>
+                  </div>
+                ) : affiliationStatus === "pending" ? (
+                  <Button
+                    disabled
+                    className="w-full bg-warning/20 text-warning border border-warning/30"
+                    size="lg"
+                  >
+                    <Clock className="w-5 h-5 mr-2" />
+                    Aguardando Aprovação do Produtor
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleRequestAffiliation}
+                    className="w-full bg-primary hover:bg-primary/90 transition-all active:scale-[0.98]"
+                    size="lg"
+                  >
+                    <UserPlus className="w-5 h-5 mr-2" />
+                    {affiliationStatus === "rejected" ? "Solicitar Novamente" : "Solicitar Afiliação"}
+                  </Button>
+                )}
                 <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50 border border-border">
                   <Info className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-muted-foreground">
@@ -351,34 +396,36 @@ export function ProductDetailModal({ product, isOpen, onClose }: ProductDetailMo
               </>
             )}
 
-            {/* Affiliate Link Section */}
-            <div className="pt-3 border-t border-border">
-              <label className="text-sm font-medium text-foreground block mb-2">
-                Seu Link de Afiliado (após aprovação)
-              </label>
-              {user ? (
-                <div className="flex gap-2">
-                  <Input
-                    value={affiliateLink}
-                    readOnly
-                    className="bg-secondary border-border text-sm"
-                  />
-                  <Button
-                    onClick={handleCopyLink}
-                    variant="outline"
-                    className="border-border shrink-0 hover:bg-secondary transition-all active:scale-[0.98]"
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
-                  <p className="text-sm text-warning">
-                    Você precisa estar logado para gerar um link de afiliado
-                  </p>
-                </div>
-              )}
-            </div>
+            {/* Affiliate Link Section - Only show when approved */}
+            {affiliationStatus === "approved" && (
+              <div className="pt-3 border-t border-border">
+                <label className="text-sm font-medium text-foreground block mb-2">
+                  Seu Link de Afiliado
+                </label>
+                {user ? (
+                  <div className="flex gap-2">
+                    <Input
+                      value={affiliateLink}
+                      readOnly
+                      className="bg-secondary border-border text-sm"
+                    />
+                    <Button
+                      onClick={handleCopyLink}
+                      variant="outline"
+                      className="border-border shrink-0 hover:bg-secondary transition-all active:scale-[0.98]"
+                    >
+                      <Copy className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+                    <p className="text-sm text-warning">
+                      Você precisa estar logado para gerar um link de afiliado
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>

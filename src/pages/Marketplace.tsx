@@ -12,7 +12,8 @@ import {
   Check,
   ShoppingCart,
   UserPlus,
-  Loader2
+  Loader2,
+  Clock
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useState } from "react";
@@ -23,7 +24,7 @@ import { useAuth } from "@/contexts/AuthContext";
 type BusinessModel = "all" | "recurring" | "whitelabel";
 
 const Marketplace = () => {
-  const { allProducts, affiliations, loading, requestAffiliation } = useData();
+  const { allProducts, loading, requestAffiliation, getAffiliationStatus, refreshData } = useData();
   const { user } = useAuth();
   const [filter, setFilter] = useState<BusinessModel>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -76,17 +77,13 @@ const Marketplace = () => {
     setRequestingAffiliation(product.id);
     try {
       await requestAffiliation(product.id);
+      await refreshData();
     } finally {
       setRequestingAffiliation(null);
     }
   };
 
   const isProductInCart = (productId: string) => items.some((item) => item.id === productId);
-  const isAffiliated = (productId: string) => affiliations.some((a) => a.product_id === productId);
-
-  const generateAffiliateLink = (productId: string) => {
-    return `${window.location.origin}/p/${productId}?prod=${productId}&ref=${user?.id}`;
-  };
 
   return (
     <DashboardLayout>
@@ -250,63 +247,115 @@ const Marketplace = () => {
                     </div>
                     
                     {/* Action Button based on model and affiliation status */}
-                    {isAffiliated(product.id) ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="border-success/30 text-success"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          navigator.clipboard.writeText(generateAffiliateLink(product.id));
-                          toast({
-                            title: "Link copiado!",
-                            description: "Seu link de afiliado foi copiado para a área de transferência.",
-                          });
-                        }}
-                      >
-                        <Check className="w-3.5 h-3.5 mr-1.5" />
-                        Afiliado
-                      </Button>
-                    ) : product.model === "whitelabel" ? (
-                      <Button
-                        size="sm"
-                        onClick={(e) => handleQuickAddToCart(e, product)}
-                        disabled={isProductInCart(product.id)}
-                        className={`transition-all active:scale-95 ${
-                          isProductInCart(product.id)
-                            ? "bg-success/20 text-success border border-success/30"
-                            : "bg-primary hover:bg-primary/90"
-                        }`}
-                      >
-                        {isProductInCart(product.id) ? (
-                          <>
+                    {(() => {
+                      const affiliationStatus = getAffiliationStatus(product.id);
+                      const isInCart = isProductInCart(product.id);
+                      
+                      // White Label products - show cart button
+                      if (product.model === "whitelabel") {
+                        return (
+                          <Button
+                            size="sm"
+                            onClick={(e) => handleQuickAddToCart(e, product)}
+                            disabled={isInCart}
+                            className={`transition-all active:scale-95 ${
+                              isInCart
+                                ? "bg-success/20 text-success border border-success/30"
+                                : "bg-primary hover:bg-primary/90"
+                            }`}
+                          >
+                            {isInCart ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 mr-1.5" />
+                                No Carrinho
+                              </>
+                            ) : (
+                              <>
+                                <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
+                                Comprar
+                              </>
+                            )}
+                          </Button>
+                        );
+                      }
+                      
+                      // Recurring products - show affiliation status
+                      if (affiliationStatus === "approved") {
+                        return (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="border-success/30 text-success cursor-default"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const link = `${window.location.origin}/p/${product.id}?prod=${product.id}&ref=${user?.id}`;
+                              navigator.clipboard.writeText(link);
+                              toast({
+                                title: "Link copiado!",
+                                description: "Seu link de afiliado foi copiado para a área de transferência.",
+                              });
+                            }}
+                          >
                             <Check className="w-3.5 h-3.5 mr-1.5" />
-                            No Carrinho
-                          </>
-                        ) : (
-                          <>
-                            <ShoppingCart className="w-3.5 h-3.5 mr-1.5" />
-                            Comprar
-                          </>
-                        )}
-                      </Button>
-                    ) : (
-                      <Button
-                        size="sm"
-                        onClick={(e) => handleQuickRequestAffiliation(e, product)}
-                        disabled={requestingAffiliation === product.id}
-                        className="bg-primary hover:bg-primary/90 transition-all active:scale-95"
-                      >
-                        {requestingAffiliation === product.id ? (
-                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        ) : (
-                          <>
-                            <UserPlus className="w-3.5 h-3.5 mr-1.5" />
-                            Afiliar
-                          </>
-                        )}
-                      </Button>
-                    )}
+                            Afiliado
+                          </Button>
+                        );
+                      }
+                      
+                      if (affiliationStatus === "pending") {
+                        return (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled
+                            className="border-warning/30 text-warning cursor-not-allowed"
+                          >
+                            <Clock className="w-3.5 h-3.5 mr-1.5" />
+                            Aguardando
+                          </Button>
+                        );
+                      }
+                      
+                      if (affiliationStatus === "rejected") {
+                        return (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={(e) => handleQuickRequestAffiliation(e, product)}
+                            disabled={requestingAffiliation === product.id}
+                            className="border-muted text-muted-foreground hover:bg-secondary"
+                          >
+                            {requestingAffiliation === product.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <>
+                                <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                                Solicitar Novamente
+                              </>
+                            )}
+                          </Button>
+                        );
+                      }
+                      
+                      // No affiliation - show request button
+                      return (
+                        <Button
+                          size="sm"
+                          onClick={(e) => handleQuickRequestAffiliation(e, product)}
+                          disabled={requestingAffiliation === product.id}
+                          className="bg-primary hover:bg-primary/90 transition-all active:scale-95"
+                        >
+                          {requestingAffiliation === product.id ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <>
+                              <UserPlus className="w-3.5 h-3.5 mr-1.5" />
+                              Afiliar
+                            </>
+                          )}
+                        </Button>
+                      );
+                    })()}
                   </div>
                 </div>
               </div>
